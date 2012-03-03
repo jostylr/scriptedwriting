@@ -1,0 +1,112 @@
+<html>
+
+<head>
+  
+  <script src="vendor/jquery-1.7.1.min.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/jquery.transparency.min.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/marking.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/highlight.pack.js" type="text/javascript" charset="utf-8"></script>
+  
+  <script src="scriptedwriting.js" type="text/javascript" charset="utf-8"></script>
+  
+  <link rel="stylesheet" href="vendor/vs.css" type="text/css" media="screen" title="no title" charset="utf-8">
+  
+  <script type="text/javascript">     
+    markit = function () {
+      var text = $("#tobemarked").val();
+      $("#target").html(marked(text));
+      runScripts();
+      hljs.initHighlighting.called = false;
+      hljs.initHighlighting();
+    };
+
+  $(document).ready(function () {
+    $("#markit").click(markit);
+    $("#markit").click();    
+  });
+  
+  
+  
+  </script>
+  
+</head>
+
+<body>
+  
+  <div id="target">
+  </div>
+  
+  <textarea rows=10 cols=100 id="tobemarked">Hello.
+
+My _name_ is Bob!
+
+1. I work for you.
+2. I do not work for you.
+3. I think you are swell.
+
+[RUN: great](scripts/great.html)
+
+[CLICK: count](scripts/click.html)
+
+
+Hello `//RUN: console.log("inline");`
+
+    //RUN:
+    console.log("block");
+
+
+Where are the quotes?
+
+```run
+console.log("quoted")
+```
+```click
+console.log("run this now")
+
+(function () {
+  
+  var runreg = /^\/?\/?RUN\:/i;
+  
+
+  runScripts = function () {
+    var code, url, text;
+    $('code, a').each(function () {
+      var self = $(this);
+      if (self.hasClass("run") ) { //code snippet with class run
+        eval(self.text());
+        self.addClass("javascript").removeClass("run");
+      } else if (self.hasClass("click") ) { //code snippet with class click
+          //click to run
+          text = self.text();
+          self.click(function () {
+            eval(text);
+          });
+          self.addClass("javascript").removeClass("click");
+      }
+      else if (self.attr("href") && self.text().match(runreg)) { //link
+        url = self.attr("href").replace(".html", ".js");
+        $.ajax({
+          url: url,
+          dataType : "script",
+          success: function () {
+            self.hide();
+          }
+        });
+      } else if (self.text().match(runreg) ) {
+        eval(self.text().replace(runreg, '') );
+      }
+    });
+  };
+
+
+  
+}());
+```
+
+  </textarea>
+  
+  <button id="markit">Mark It!</button>
+  
+  
+  
+</body>
