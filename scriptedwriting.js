@@ -4,69 +4,84 @@
 //anon for local closure
 (function () {
   
-  var runreg = /^\/?\/?RUN\:/i;
-  var clickreg = /^\/?\/?CLICK\:/i;
-  
-
-  runScripts = function () {
-    var code, url, text;
-    $('code, a').each(function () {
-      var self = $(this);
-      if (self.hasClass("run") ) { //code snippet with class run
-        eval(self.text());
-        self.addClass("javascript").removeClass("run");
-      } else if (self.hasClass("click") ) { //code snippet with class click
-          //click to run
-          text = self.text();
-          self.click((function () {
-            var t = text;
-            return function () {
-              eval(t);
-            }; 
-          } () )  );
-          self.addClass("javascript").removeClass("click");
-      }
-      else if (self.attr("href") && self.text().match(runreg)) { //link
-        url = self.attr("href").replace(".html", ".js");
+  var modes = {
+    run : {  // run the code and hide it
+      code: function (self, cl, text) {
+        eval(text);
+        if (cl) {
+          self.removeClass(cl);
+        }        
+      }, 
+      a : function (self, url) {
+        url = url.replace(".html", ".js");
         $.ajax({
           url: url,
           dataType : "script",
-          success: (function () {
-            var s = self;
-            return function () {
-              s.hide();
-          };
-        } () )
+          success: function () {
+              self.hide();
+          }
         });
-      }  else if (self.attr("href") && self.text().match(clickreg)) { //link
-          url = self.attr("href"); //
-          $.ajax({
-            url: url,
-            dataType : "text",
-            success: (function () {
-              var s = self;
-              return function (data) {
-                var chunk;
-                chunk = data.split("<!--split-->")[1];
-                s.replaceWith(chunk);
-                $.ajax({
-                  url : url.replace(".html", ".js"),
-                  dataType: "script"
-                });
-              };
-            } () )
-          });
-      } else if (self.text().match(clickreg) ) {
-        text = self.text().replace(clickreg, '');
-        self.click((function () {
-          var t = text;
-          return function () {
-            eval(t);
-          };} ())
-        );
+      }
+    },
+    show : {  // run the code and display it, using result as title
+    },
+    click : { // make the code clickable to run
+      code: function (self, cl, text) { 
+        self.click(function () {
+          eval(text);
+        } );
+        if (cl) {
+           self.removeClass(cl);
+         }        
+       },
+       a : function (self, url) {
+         $.ajax({
+           url: url,
+           dataType : "text",
+           success: function (data) {
+             var chunk;
+             chunk = data.split("<!--split-->")[1];
+             self.replaceWith(chunk);
+             $.ajax({
+                url : url.replace(".html", ".js"),
+                dataType: "script"
+              });
+           }
+         });
+       }       
+    },
+    replace : { // run the code and use the result to replace the code snippet
+    },
+    add : { //run the code and place result after it
+    },
+    insert : {  //insert some html
+    },
+    lp : { //a literate programming snippet
+      
+    }
+  };
+
+  var reg = /^\/?\/?(run|show|click|replace|add|insert|part)\:?/i;
+  
+
+  runScripts = function () {
+    var url, text, cl, match, type;
+    $('code, a').each(function () {
+      var self = $(this);
+      cl = self.attr('class');
+      text = self.text();
+      match = reg.exec(cl) || reg.exec(text);
+      if (match) {
+        type = match[1].toLowerCase();
+        url = self.attr("href"); 
+        if (url) {
+          modes[type].a(self, url, text);
+        } else { //code 
+          modes[type].code(self, cl, text);
+        }
       }
     });
-  };
+};
 
 
   
