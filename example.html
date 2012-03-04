@@ -44,10 +44,9 @@ My _name_ is Bob!
 2. I do not work for you.
 3. I think you are swell.
 
+## RUN
+
 [RUN: great](scripts/great.html)
-
-[CLICK: count](scripts/click.html)
-
 
 Hello `//RUN: console.log("inline");`
 
@@ -55,53 +54,41 @@ Hello `//RUN: console.log("inline");`
     console.log("block");
 
 
-Where are the quotes? `CLICK: alert("bad")`
-
 ```run
 console.log("quoted")
 ```
+
+## CLICK
+
+[CLICK: count](scripts/click.html)
+
+Where are the quotes? `CLICK: alert("bad")`
+
 ```click
 console.log("run this now")
-
-(function () {
-  
-  var runreg = /^\/?\/?RUN\:/i;
-  
-
-  runScripts = function () {
-    var code, url, text;
-    $('code, a').each(function () {
-      var self = $(this);
-      if (self.hasClass("run") ) { //code snippet with class run
-        eval(self.text());
-        self.addClass("javascript").removeClass("run");
-      } else if (self.hasClass("click") ) { //code snippet with class click
-          //click to run
-          text = self.text();
-          self.click(function () {
-            eval(text);
-          });
-          self.addClass("javascript").removeClass("click");
-      }
-      else if (self.attr("href") && self.text().match(runreg)) { //link
-        url = self.attr("href").replace(".html", ".js");
-        $.ajax({
-          url: url,
-          dataType : "script",
-          success: function () {
-            self.hide();
-          }
-        });
-      } else if (self.text().match(runreg) ) {
-        eval(self.text().replace(runreg, '') );
-      }
-    });
-  };
-
-
-  
-}());
 ```
+
+## REPLACE
+
+`REPLACE: 4+3`
+
+```replace
+n = 5;
+ret = 9;
+for (i =0; i < n; i += 1) {
+  ret += i;
+}
+ret;
+```
+
+    //REPLACE
+     "no need for console";
+
+[REPLACE: count](scripts/click.html)
+
+
+## INSERT
+
 
   </textarea>
   

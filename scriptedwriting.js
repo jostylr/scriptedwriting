@@ -1,4 +1,4 @@
-/*globals $, runScripts, console*/
+/*globals $, runScripts, console, marked*/
 
 
 //anon for local closure
@@ -35,22 +35,45 @@
          }        
        },
        a : function (self, url) {
-         $.ajax({
-           url: url,
-           dataType : "text",
-           success: function (data) {
-             var chunk;
-             chunk = data.split("<!--split-->")[1];
-             self.replaceWith(chunk);
-             $.ajax({
-                url : url.replace(".html", ".js"),
-                dataType: "script"
-              });
-           }
+         self.click(function (event) {
+           event.preventDefault();
+           $.ajax({
+             url: url,
+             dataType : "text",
+             success: function (data) {
+               var chunk;
+               chunk = data.split("<!--split-->")[1];
+               self.replaceWith(chunk);
+               $.ajax({
+                  url : url.replace(".html", ".js"),
+                  dataType: "script"
+                });
+             }
+           });
          });
-       }       
+         return false;
+       }
     },
     replace : { // run the code and use the result to replace the code snippet
+      code: function (self, cl, text) {
+        var result = eval(text);
+        self.replaceWith(marked(result+ '') );
+      }, 
+      a : function (self, url) {
+          $.ajax({
+            url: url,
+            dataType : "text",
+            success: function (data) {
+              var chunk;
+              chunk = data.split("<!--split-->")[1];
+              self.replaceWith(chunk);
+              $.ajax({
+                 url : url.replace(".html", ".js"),
+                 dataType: "script"
+               });
+            }
+          });
+        }       
     },
     add : { //run the code and place result after it
     },
