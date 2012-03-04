@@ -3,7 +3,9 @@
 
 //anon for local closure
 (function () {
-  
+
+  var reg = /^\s*\/?\/?(run|show|click|replace|add|insert|\/\*\!)\:?/i;
+
   var modes = {
     run : {  // run the code and hide it
       code: function (self, cl, text) {
@@ -24,6 +26,20 @@
       }
     },
     show : {  // run the code and display it, using result as title
+      code: function (self, cl, text) {
+        var result = eval(text);
+        self.attr("title", JSON.stringify(result) );
+      }, 
+      a : function (self, url) {
+        url = url.replace(".html", ".js");
+        $.ajax({
+          url: url,
+          dataType : "script",
+          success: function (data) {
+            self.attr("title", data );
+          }
+        });
+      }
     },
     click : { // make the code clickable to run
       code: function (self, cl, text) { 
@@ -79,12 +95,16 @@
     },
     insert : {  //insert some html
     },
-    lp : { //a literate programming snippet
-      
+    "/*!" : { //a literate programming snippet
+      code : function (self, cl, text) {
+        console.log("Literate programming!");
+      },
+      a : function (self, url, text) {
+        
+      }
     }
   };
 
-  var reg = /^\/?\/?(run|show|click|replace|add|insert|part)\:?/i;
   
 
   runScripts = function () {
@@ -95,6 +115,7 @@
       text = self.text();
       match = reg.exec(cl) || reg.exec(text);
       if (match) {
+        text = text.replace(reg, '');
         type = match[1].toLowerCase();
         url = self.attr("href"); 
         if (url) {
