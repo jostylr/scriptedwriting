@@ -12,7 +12,8 @@
         eval(text);
         if (cl) {
           self.removeClass(cl);
-        }        
+        }
+        self.hide();        
       }, 
       a : function (self, url) {
         url = url.replace(".html", ".js");
@@ -92,8 +93,47 @@
         }       
     },
     add : { //run the code and place result after it
+        code: function (self, cl, text) {
+          var result = eval(text);
+          if (self.parent().is('pre') ) {
+            //block
+            self.after(marked(result+ '') );
+          } else {
+            self.text(text);
+            self.after(' == ' + result); // inline
+          }
+        }, 
+        a : function (self, url) {
+            $.ajax({
+              url: url,
+              dataType : "text",
+              success: function (data) {
+                var chunk;
+                chunk = data.split("<!--split-->")[1];
+                self.after(chunk);
+                $.ajax({
+                   url : url.replace(".html", ".js"),
+                   dataType: "script"
+                 });
+              }
+            });
+        }       
     },
     insert : {  //insert some html
+      code : function (self, cl, text) {
+        self.replaceWith(text);
+      },
+      a : function (self, url) {
+        $.ajax({
+          url: url,
+          dataType : "text",
+          success: function (data) {
+            var chunk;
+            chunk = data.split("<!--split-->")[1];
+            self.replaceWith(chunk);
+          }
+        });
+      }
     },
     "/*!" : { //a literate programming snippet
       code : function (self, cl, text) {
