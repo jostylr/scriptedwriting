@@ -3,7 +3,7 @@
 
 //anon for local closure
 (function () {
-
+  
   var reg = /^\s*\/?\/?(run|show|click|replace|add|insert|\/\*\!)\:?/i;
 
   var modes = {
@@ -94,12 +94,12 @@
     },
     add : { //run the code and place result after it
         code: function (self, cl, text) {
+          self.text(text);
           var result = eval(text);
           if (self.parent().is('pre') ) {
             //block
-            self.after(marked(result+ '') );
+            self.parent().after(marked(result+ '') );
           } else {
-            self.text(text);
             self.after(' == ' + result); // inline
           }
         }, 

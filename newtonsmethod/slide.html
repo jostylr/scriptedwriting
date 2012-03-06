@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Title</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="https://github.com/downloads/gnab/remark/remark-0.3.3.min.js" type="text/javascript">
+      {"highlightStyle" : "vs"}
+    </script>
+    
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        extensions: ["tex2jax.js"],
+        jax: ["input/TeX", "output/HTML-CSS"],
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
+          processEscapes: true
+        },
+        "HTML-CSS": { availableFonts: ["TeX"] }
+      });
+    </script><script type="text/javascript"
+      src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
+     <script src="http://cdnjs.cloudflare.com/ajax/libs/jsxgraph/0.93/jsxgraphcore.js"></script>    
+    <script src="../vendor/marking.js" type="text/javascript" charset="utf-8"></script>
+
+    <script src="../scriptedwriting.js" type="text/javascript" charset="utf-8"></script>
+    
+    
+    <style>
+     /*
+     */
+     .jxgbox {
+         position:relative; /* for IE 7 */
+         overflow:hidden;
+         background-color:#ffffff;
+         border-style:solid;
+         border-width:1px;
+         border-color:#356AA0;
+         -moz-border-radius:10px;
+         -webkit-border-radius:10px;
+         /*
+             -moz-box-shadow:black 2px 2px 2px -2px, #151A10 4px 4px;
+             -webkit-box-shadow:4px 4px 3px #151A10;
+             */
+     }
+
+     .JXGtext {
+         background-color: transparent; /* May produce artefacts in IE. Solution: setting a color explicitly. */
+         font-family: Arial, Helvetica, Geneva;
+         padding: 0px;
+         margin: 0px;
+         /*line-height:100%;*/ /* This has to be commented out. Otherwise subscripts are not visible in IE */
+         /*border-style:dotted;*/
+         /*border-width:0.4px;*/
+     }
+
+     .navbar {
+         color: #aaaaaa;
+         background-color: #f5f5f5;
+         padding: 2px;
+         position: absolute;
+         font-size: 10px;
+         cursor: pointer;
+         z-index: 100;
+         right: 5px;
+         bottom: 5px;
+     }
+     </style>
+    
+    <style type="text/css" media="screen">
+      /* Slideshow styles */
+    </style>
+    <script>
+    
+      remark.events.on("slidein", function (el, ind) {
+        runScripts();
+      });
+        /*
+        $(el).find('a').each(function () {
+          var link = $(this);
+          if (link.text().slice(0,4) === "RUN:") {
+            console.log("hi");
+            
+            $.ajax({
+              url: link.attr('href'),
+              success: function (data) {
+                var chunk = data.split("<!--split-->")[1];
+                $(chunk).replaceAll(link);
+              },
+              dataType: 'html'
+            });
+          }
+        });
+        console.log($(el).html(), ind);
+      });*/
+    </script>
+  </head>
+  <body>
+    <textarea id="source">
+
+.center.middle
+# Newton's Method
+
+**The problem**: Find a solution to $\sin(x) - \ln(x^2+1) = 0$.
+
+**The approach**: Pick a point and start walking to the x-axis in the direction indicated by the function.
+
+---
+
+# The graph
+
+[replace: graph](nm.html)
+
+---
+
+# Introduction
+
+[RUN: nm](nm.html)
+    </textarea>
+    <div id="slideshow"></div>
+  </body>
+</html>
