@@ -26,7 +26,13 @@ refactor scripted to be smoother.
       * .replace means replace code with result
       * .after means put result after the code
       * .before means put result before the code
-      
+      * .lp for literate programming. If inlined, use ; to end the header. Follow .lp with  =, +, ^ with = assumed _ for a macro
+
+break
+  
+    HTML.lp= index.html : header
+    
+    
   
 Add in code editor and make a live literate programming webappy thingy
   
