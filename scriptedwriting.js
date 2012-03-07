@@ -4,7 +4,37 @@
 //anon for local closure
 (function () {
   
-  var reg = /^\s*\/?\/?(run|show|click|replace|add|insert|\/\*\!)\:?/i;
+  var cssparser = function (text) {
+    var i, cur, n, pieces, selector, map, ii, nn, properties, prop,
+      comreg = /(\/\*([^*]|[\r\n]|(\*+([^*\/]|[\r\n])))*\*+\/)|(\/\/.*)/g,
+      styles = {}
+    ;
+
+    text = text.replace(comreg, ' ');
+
+    pieces = text.split("}");
+    n = pieces.length-1;
+
+    for (i = 0; i < n; i += 1) {
+      cur = pieces[i].split("{");
+      selector = cur[0].trim(); //trim may not be supported.
+      if (styles.hasOwnProperty(selector)) {
+        map = styles[selector];
+      } else {
+        styles[selector] = map = {};    
+      }
+      properties = cur[1].split(";");
+      nn = properties.length;
+      for (ii = 0; ii < nn; ii += 1) {
+        prop = properties[ii].split(":");
+        map[prop[0].trim()] = prop[1].trim();
+      }
+    }
+    return styles;
+  };
+  
+  
+  var reg = /^\s*\/?\/?(run|show|click|replace|add|insert|style|\/\*\!)\:?/i;
 
   var modes = {
     run : {  // run the code and hide it
@@ -133,6 +163,16 @@
             self.replaceWith(chunk);
           }
         });
+      }
+    },
+    style : {
+      code : function (self, cl, text) {
+        var selector,
+          styles = cssparser(text)
+        ;
+        for (selector in styles) {
+          $(selector).css(styles[selector]);
+        }
       }
     },
     "/*!" : { //a literate programming snippet
