@@ -27,6 +27,7 @@ refactor scripted to be smoother.
       * .after means put result after the code
       * .before means put result before the code
       * .lp for literate programming. If inlined, use ; to end the header. Follow .lp with  =, +, ^ with = assumed _ for a macro
+      * .toggle for toggling the code
 
 break
   
@@ -37,3 +38,5 @@ break
 Add in code editor and make a live literate programming webappy thingy
   
 Simple HTML generated website using Bootstrap using literate programming style. So as one reads, one can edit and personalize it. Start with the content and so it then compiles to something meaningful. And then step them through modifying to their own. So that the worst details are at the end where they are almost done. Have a live preview at every step so they can see their work evolve. 
+
+js.run...#index.html : header  or _header for a function
