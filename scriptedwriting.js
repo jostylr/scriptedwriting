@@ -8,10 +8,11 @@ var setupRunScripts = function ($, codeMirror, marked) {
   
   
   var global = {
-    blocks : {},
+    blocks : {}, //storage objects by name from runscripts
     waiting : {}, //stuff the key is waiting for
     needs : {},  // stuff that needs the key
-    dependencies : {} //stuff the key uses
+    dependencies : {}, //stuff the key uses
+    libs : {} //libraries loaded, i.e., jsxgraph
   };
   
   var nameCounter = 0;
@@ -78,6 +79,18 @@ var setupRunScripts = function ($, codeMirror, marked) {
     return -1;
   };
  
+  var isEmpty = function(obj) {
+    var key;
+    //for pure objects only
+    for (key in obj){
+      if (obj.hasOwnProperty(key) ) {
+        return false;
+      }
+    }
+    return true;
+  };
+ 
+ 
  //end underscore
  
   // parse options, giving defaults, returns the functions that get run
@@ -113,7 +126,6 @@ var setupRunScripts = function ($, codeMirror, marked) {
     }
   };
 
-  //truly awful
   var removeFrom = function (arr, val) {
     var position;
     
@@ -146,9 +158,11 @@ var setupRunScripts = function ($, codeMirror, marked) {
           waiting[cur] = removeFrom(waiter, name);
           if (waiter.length === 0) {
             //run cur !!!!!
+            /*
             curStorage = global.blocks[cur];
             curActions = [curStorage
             compile(curStorage, )
+            */
           } 
         }
       } //for 
@@ -161,7 +175,7 @@ var setupRunScripts = function ($, codeMirror, marked) {
   compile = function (storage, actions) {
     var i, n,
       name = storage.name,
-      needs = global.needs;
+      needs = global.needs
     ;
     
     actions = actions || storage.actions;
@@ -201,13 +215,55 @@ var setupRunScripts = function ($, codeMirror, marked) {
     });    
   };
 
+  //load libs and then call callback
+  var loadLibs = function (callback) {
+    var 
+      libs = global.libs,
+      reg = reg ||(/^\s*(lib)\.(js|html|css|less)(.*)/i);
+      loading = {};
+    ;
+    
+    //links only, 
+    this.find('a').each(function () {
+      var type, name, url, 
+        self = $(this),
+        match = self.text().match(reg);
+      ;
+      
+      if (match) { //library found
+        type = match[2];
+        name = match[3];
+        url = self.attr("href"); 
+        self.remove(); // hide link
+        if (!(loading.hasOwnProperty(name) )  && (!(libs.hasOwnProperty(name) ) ) ) { //unseen
+          loading[name] = 1;
+            $.ajax({
+               url: url,
+               dataType : "text",
+               success: function (data) {
+                 //parse data according to type
+                 
+               },
+               complete : function () {
+                 delete loading[name];
+               }
+          });
+          
+        }
+        
+      }
+    
+    
+  };
+
+
   var runScripts = function me (defaults, actions, reg) {
     var name, 
       blocks = global.blocks
     ;
     defaults = $.extend({}, me.defaults, defaults);
     actions = $.extend({}, me.actions, actions);
-    reg = reg ||(/^\s*\/?\/?(js|html|css|md)([^:\n]*)(:|\n|\r\n|\n\r)/i);
+    reg = reg ||(/^\s*\/?\/?(js|html|css|less|md)([^:\n]*)(:|\n|\r\n|\n\r)/i);
 
     this.find('code, a').each(function () {
       var url, text, match, type, classes, actionFun, container, par, namesplit,
@@ -408,7 +464,7 @@ var setupRunScripts = function ($, codeMirror, marked) {
         } else {
           showButton.click();
         }              
-    },
+      },
     //append|prepend|before|after|html|text
     {
       append : function (container, element, type, text, storage, selector){
@@ -442,7 +498,7 @@ var setupRunScripts = function ($, codeMirror, marked) {
 
 
   $.fn.runScripts = runScripts;
-
+  $.fn.loadLibs = loadLibs;
   
 };
 

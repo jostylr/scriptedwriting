@@ -29,7 +29,18 @@ refactor scripted to be smoother.
       * .lp for literate programming. If inlined, use ; to end the header. Follow .lp with  =, +, ^ with = assumed _ for a macro
       * .toggle for toggling the code
 
-break
+Going to go with chaining. No defined order. 
+
+    .run.html('div.great').edit[run.html('div.great')]
+
+    .show.click[run.html("div.great")]
+
+    .run.marked("container").hide
+
+    .needs[run.text](jsxgraph, something)
+
+
+So these are run in the order presented. The [] is what is to be run when the eventual action is done. That is, when someone clicks or when all dependencies have been run, ... 
   
     HTML.lp= index.html : header
     
@@ -40,3 +51,17 @@ Add in code editor and make a live literate programming webappy thingy
 Simple HTML generated website using Bootstrap using literate programming style. So as one reads, one can edit and personalize it. Start with the content and so it then compiles to something meaningful. And then step them through modifying to their own. So that the worst details are at the end where they are almost done. Have a live preview at every step so they can see their work evolve. 
 
 js.run...#index.html : header  or _header for a function
+
+incorporate less: [so jrburke](http://stackoverflow.com/questions/5889901/requirejs-and-less)
+(new less.Parser()).parse(lessText, function (err, css) {
+  if (err) {
+    if (typeof console !== 'undefined' && console.error) {
+      console.error(err);
+    }
+  } else {
+    var style = document.createElement('style');
+    style.type = 'text/css';
+    style.textContent = css.toCSS();
+  }
+});
+
