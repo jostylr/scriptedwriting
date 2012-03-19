@@ -5,17 +5,28 @@
   <script src="vendor/jquery-1.7.1.min.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/jquery.transparency.min.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/marking.js" type="text/javascript" charset="utf-8"></script>
-  <script src="vendor/highlight.pack.js" type="text/javascript" charset="utf-8"></script>
+   <script src="vendor/highlight.pack.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/less.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/CodeMirror/lib/codemirror.js" type="text/javascript" charset="utf-8"></script>
+  <link rel="stylesheet" href="vendor/CodeMirror/lib/codemirror.css" type="text/css" media="screen" title="no title" charset="utf-8">
+  <script src="vendor/CodeMirror/mode/css/css.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/CodeMirror/mode/javascript/javascript.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/CodeMirror/mode/xml/xml.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/CodeMirror/mode/htmlmixed/htmlmixed.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/CodeMirror/mode/less/less.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/CodeMirror/mode/markdown/markdown.js" type="text/javascript" charset="utf-8"></script>
   
   <script src="scriptedwriting.js" type="text/javascript" charset="utf-8"></script>
   
   <link rel="stylesheet" href="vendor/vs.css" type="text/css" media="screen" title="no title" charset="utf-8">
   
   <script type="text/javascript">     
+    setupRunScripts($, CodeMirror, marked, less)
     markit = function () {
       var text = $("#tobemarked").val();
-      $("#target").html(marked(text));
-      runScripts();
+      $("#target").
+        html(marked(text)).
+        runScripts();
       hljs.initHighlighting.called = false;
       hljs.initHighlighting();
     };
@@ -44,57 +55,57 @@ My _name_ is Bob!
 2. I do not work for you.
 3. I think you are swell.
 
-## RUN
+## RUN and HIDE
 
-[RUN: great](scripts/great.html)
+[js.run.hide: great](scripts/great.html)
 
-Hello `//RUN: console.log("inline");`
+Hello `//js.run.hide: console.log("inline");`
 
-    //RUN:
+    //js.run.hide:
     console.log("block");
 
 
-```run
-console.log("quoted")
-```
+## RUN and TEXT
 
-## SHOW
+[js.run.text: should be 7](scripts/seven.html)
 
-[SHOW: should be 7](scripts/seven.html)
+Hello `js.run.text: "inline";`
 
-Hello `//SHOW: "inline";`
-
-    //SHOW:
+    //js.run.text:
     "block";
 
 
-```show
-"quoted"
-```
+## RUN and TEXT and HIDE
+
+[js.run.text.hide: should be 7](scripts/seven.html)
+
+Hello `js.run.text.hide: "inline";`
+
+    //js.run.text.hide:
+    "block";
+
+## EDIT[RUN and TEXT]
+
+[js.edit: should be 7](scripts/seven.html)
+
+Hello `js.edit[run]: "inline";`
+
+    //js.edit[run.text]:
+    console.log("hi");
+    4+5;
+
 
 
 ## CLICK
 
-[CLICK: count](scripts/click.html)
+[js.click.hide: count](scripts/click.html)
 
 Where are the quotes? `CLICK: alert("bad")`
-
-```click
-console.log("run this now")
-```
 
 ## REPLACE
 
 `REPLACE: 4+3`
 
-```replace
-n = 5;
-ret = 9;
-for (i =0; i < n; i += 1) {
-  ret += i;
-}
-ret;
-```
 
     //REPLACE
      "no need for console";
