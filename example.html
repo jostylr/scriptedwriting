@@ -95,6 +95,11 @@ Hello `js.edit[run]: "inline";`
     4+5;
 
 
+## RUN.TOGGLE
+
+    js.run.toggle(hide).text
+    var five = 5;
+    4 + 3+ five;
 
 ## CLICK
 
@@ -132,18 +137,87 @@ ret;
 [ADD: count](scripts/click.html)
 
 
-## INSERT
+## HTML and CSS
 
-`INSERT: <p id="dude"><span class="great">empty<span></p>`  
+some `html.hide.insert: <p id="dude"><span class="great">empty<span></p>`  
   
-```run
-$(".great").text("inserted!");
-```  
-
-    STYLE
+    css.hide.style
     .great {color:red}
     #dude  {width : 30px}
 
+## LESS
+
+    less.hide.style
+    @color: #4D926F;
+    .great {color:@color;}
+
+## MARKDOWN
+
+    md.edit[insert].insert
+    This is good.
+    
+        if (this) {
+          bye
+        }
+    Lists
+    
+    * one
+    * a 
+        1. to
+        2. bye
+        
+        
+## Cooking it all up
+
+html container
+
+    html.insert
+    <div id="cook"><div class="md"></div><table></table></div>
+
+markdown in it
+    
+    md.insert("#cook .md")
+    Some markdown to insert into div
+    
+    1. Just a list
+    2. Style it
+    3. Cooly
+    
+    Done with list now some code
+    
+        if (code) {
+          console.log("cool");
+        }
+
+css styling
+
+    css.style("#cook")
+    ol {color : green}
+
+javascript generation
+
+    js.strict.insert("#cook table").edit[strict.insert("#cook table")]
+    var i, 
+      trs = [],
+      n = 10
+    ;
+    for (i = 0; i < n; i += 1) {
+      trs.push("<tr><td>"+i+"</td><td>"+Math.pow(2, i)+"</td></tr>");
+    }
+    trs.join("\n")
+
+less styling
+
+    less.style("#cook")
+    @base: green;
+
+    tr {
+      color: saturate(@base, 5%);
+      background-color: lighten(spin(@base, 8), 25%);
+    }
+    
+All done.
+    
 ## Literate programming `/*!`
 
 
