@@ -1,0 +1,225 @@
+<html>
+
+<head>
+  
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <script src="http://dl.dropbox.com/u/2839455/highlight.pack.js"></script>
+  <script src="http://dl.dropbox.com/u/2839455/marking.js"></script>
+  <script src="http://dl.dropbox.com/u/2839455/less.js"></script>
+  <script src="http://dl.dropbox.com/u/2839455/CodeMirror/lib/codemirror.js"></script>
+  <link rel="stylesheet" href="http://dl.dropbox.com/u/2839455/CodeMirror/lib/codemirror.css" type="text/css" media="screen" title="no title" charset="utf-8">  <script src="http://dl.dropbox.com/u/2839455/CodeMirror/mode/css/css.js"></script>
+  <script src="http://dl.dropbox.com/u/2839455/CodeMirror/mode/javascript/javascript.js"></script>
+  <script src="http://dl.dropbox.com/u/2839455/CodeMirror/mode/xml/xml.js"></script>
+  <script src="http://dl.dropbox.com/u/2839455/CodeMirror/mode/htmlmixed/htmlmixed.js"></script>
+  <script src="http://dl.dropbox.com/u/2839455/CodeMirror/mode/less/less.js"></script>
+  <script src="http://dl.dropbox.com/u/2839455/CodeMirror/mode/markdown/markdown.js"></script>
+  
+  
+  <script src="http://dl.dropbox.com/u/2839455/scriptedwriting.js"></script>
+  <script>
+    setupRunScripts($, CodeMirror, marked, less)  
+      markit = function () {
+        var text = $("#tobemarked").val();
+        $("#target").
+          html(marked(text)).
+          runScripts();
+        hljs.initHighlighting.called = false;
+        hljs.initHighlighting();
+      };
+
+    $(document).ready(function () {
+      $("#markit").click(markit);
+      $("#markit").click();    
+    });
+  </script>  
+  
+  <link rel="stylesheet" href="vendor/vs.css" type="text/css" media="screen" title="no title" charset="utf-8">
+    
+</head>
+
+<body>
+  
+  <div id="target">
+  </div>
+  
+  <textarea rows=10 cols=100 id="tobemarked">Hello.
+
+My _name_ is Bob!
+
+1. I work for you.
+2. I do not work for you.
+3. I think you are swell.
+
+## RUN and HIDE
+
+[js.run.hide: great](scripts/great.html)
+
+Hello `//js.run.hide: console.log("inline");`
+
+    //js.run.hide:
+    console.log("block");
+
+
+## RUN and TEXT
+
+[js.run.text: should be 7](scripts/seven.html)
+
+Hello `js.run.text: "inline";`
+
+    //js.run.text:
+    "block";
+
+
+## RUN and TEXT and HIDE
+
+[js.run.text.hide: should be 7](scripts/seven.html)
+
+Hello `js.run.text.hide: "inline";`
+
+    //js.run.text.hide:
+    "block";
+
+## EDIT[RUN and TEXT]
+
+[js.edit: should be 7](scripts/seven.html)
+
+Hello `js.edit[run]: "inline";`
+
+    //js.edit[run.text]:
+    console.log("hi");
+    4+5;
+
+
+## RUN.TOGGLE
+
+    js.run.toggle(hide).text
+    var five = 5;
+    4 + 3+ five;
+
+## CLICK
+
+[js.click.hide: count](scripts/click.html)
+
+Where are the quotes? `CLICK: alert("bad")`
+
+## REPLACE
+
+`REPLACE: 4+3`
+
+
+    //REPLACE
+     "no need for console";
+
+[REPLACE: count](scripts/click.html)
+
+
+## ADD
+
+`ADD: 4+3`
+
+```add
+n = 5;
+ret = 9;
+for (i =0; i < n; i += 1) {
+  ret += i;
+}
+ret;
+```
+
+    //ADD
+     "no need for console";
+
+[ADD: count](scripts/click.html)
+
+
+## HTML and CSS
+
+some `html.hide.insert: <p id="dude"><span class="great">empty<span></p>`  
+  
+    css.hide.style
+    .great {color:red}
+    #dude  {width : 30px}
+
+## LESS
+
+    less.hide.style
+    @color: #4D926F;
+    .great {color:@color;}
+
+## MARKDOWN
+
+    md.edit[insert].insert
+    This is good.
+    
+        if (this) {
+          bye
+        }
+    Lists
+    
+    * one
+    * a 
+        1. to
+        2. bye
+        
+        
+## Cooking it all up
+
+html container
+
+    html.insert
+    <div id="cook"><div class="md"></div><table></table></div>
+
+markdown in it
+    
+    md.insert("#cook .md")
+    Some markdown to insert into div
+    
+    1. Just a list
+    2. Style it
+    3. Cooly
+    
+    Done with list now some code
+    
+        if (code) {
+          console.log("cool");
+        }
+
+css styling
+
+    css.style("#cook")
+    ol {color : green}
+
+javascript generation
+
+    js.strict.insert("#cook table").edit[strict.insert("#cook table")]
+    var i, 
+      trs = [],
+      n = 10
+    ;
+    for (i = 0; i < n; i += 1) {
+      trs.push("<tr><td>"+i+"</td><td>"+Math.pow(2, i)+"</td></tr>");
+    }
+    trs.join("\n")
+
+less styling
+
+    less.style("#cook")
+    @base: green;
+
+    tr {
+      color: saturate(@base, 5%);
+      background-color: lighten(spin(@base, 8), 25%);
+    }
+    
+All done.
+    
+## Literate programming `/*!`
+
+
+  </textarea>
+  
+  <button id="markit">Mark It!</button>
+  
+  
+  
+</body>
