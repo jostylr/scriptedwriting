@@ -276,10 +276,11 @@ var containIt = function (storage) { // done
 //parsing a string like: option(par1, par2, "what ever!").option2[run.hide](okay)$my name
 // returns an object with actions, name, parent. Each action is an object of {command, parent, actions, parameters}
 var parseOptions = function (options, defaults) { //done
-  var n, ret, comobj, mode, parents, bin, temp, actions, i, currentLetter, parameters, tail, end;
+  var n, ret, comobj, mode, parents, bin, temp, actions, i, currentLetter, parameters, tail, end, ii, nn, paract, properties;
   
   
   //parse it a character at a time
+  options = options.trim();
   n = options.length;
   ret =  {actions : []};
   parents = [];
@@ -319,6 +320,16 @@ var parseOptions = function (options, defaults) { //done
             comobj.parameters = parameters = [];
             mode = "parameters";
           break;
+           case "{" :  // parameters, done
+            // make command out of bin and empty it
+            if (bin.length !== 0) {
+              comobj.command = bin.join("").trim();
+              bin = [];
+            }
+            comobj.properties = properties = {};
+            mode = "properties";
+          break;
+          
           case "[" :  // new action level, done
             if (bin.length !== 0) {
               comobj.command = bin.join("").trim();
@@ -336,10 +347,37 @@ var parseOptions = function (options, defaults) { //done
               comobj.command = bin.join("").trim();
               bin = [];
             }
+            if (!(comobj.hasOwnProperty("command") ) ) {
+              //no command, does not exist
+              actions.pop();
+            }
+            if  (actions.length === 0) {
+              //push actions from parent on. that which comes before
+              paract = parents[parents.length-2].actions;
+              
+              nn = paract.length-1; // do not include last one since that is this one's parent!
+              for (ii = 0; ii < nn; ii += 1) {
+                actions.push(paract[ii]);
+              }
+            }
+            
             comobj = parents.pop();
             actions = parents[parents.length-1].actions;
-            console.log("end ]", JSON.stringify(actions))
             
+            
+          break;
+          case "'" : // ditto marker? 
+            if (options[i+1] === "'")  {
+              //ditto
+              actions.pop(); //get rid of this object
+              //push actions from parent on. that which comes before
+              paract = parents[parents.length-2].actions;
+              nn = paract.length-1; // do not include last one since that is this one's parent!
+              for (ii = 0; ii < nn; ii += 1) {
+                actions.push(paract[ii]);
+              }
+            }
+            i = i+1; //advance past quote
           break;
           case '#' :  //name, done
             if (bin.length !== 0) {
@@ -424,10 +462,73 @@ var parseOptions = function (options, defaults) { //done
         }
         
       break; //parameters      
+      case "properties" :
+        // } and , ' and " are special as is 
+        switch (currentLetter) {
+          case "}" : //end parameters
+            if (bin.length !== 0) {
+              temp = bin.join("").trim("");
+              if (temp) {
+                properties[temp] = 1;
+              }
+              bin = [];
+            }
+            mode = "action";
+          break;
+          case "," : //new parameter
+          if (bin.length !== 0) {
+            temp = bin.join("").trim("");
+            if (temp) {
+              properties[temp] = 1;
+            }
+            bin = [];
+          }
+          break;
+          case "'" :  //new single quote
+          if (bin.length !== 0) {
+            temp = bin.join("").trim("");
+            if (temp) {
+              properties[temp] = 1;
+            }
+            bin = [];
+          }
+            tail = options.slice(i+1);
+            end = tail.indexOf("'");
+            if (end === -1) {
+              properties[tail] = 1;
+              i = n;
+            } else {
+              properties[tail.slice(0, end)] = 1;
+              i += end + 1;
+            }
+          break;
+          case '"' : //new double quote
+          if (bin.length !== 0) {
+            temp = bin.join("").trim("");
+            if (temp) {
+              properties[temp] = 1;
+            }
+            bin = [];
+          }
+            tail = options.slice(i+1);
+            end = tail.indexOf('"');
+            if (end === -1) {
+              properties[tail] = 1;
+              i = n;
+            } else {
+              properties[tail.slice(0, end)] = 1;
+              i += end+1;
+            }
+          break;
+          default : 
+            bin.push(currentLetter);
+          
+        }
+        break; //properties 
     }
+    
   }
   
-  console.log(ret)
   
   if (bin.length !== 0) {
     comobj.command = bin.join("").trim();
@@ -439,6 +540,8 @@ var parseOptions = function (options, defaults) { //done
   if (!(ret.hasOwnProperty('name') ) ) {
     ret.name = newName();
   }
+  
+  console.log(JSON.stringify(ret))
   return ret; 
 };
     
@@ -557,7 +660,27 @@ var parseOptions = function (options, defaults) { //done
     'js' : 'javascript'
   };
 
-  runScripts.actions = { 
+  runScripts.actions = {
+    act : function (storage, comobj) {
+      var i, n, branch, obj, 
+        toRun = comobj.parameters || []
+      ;
+      
+      n = toRun.length;
+      for (i = 0; i < n; i += 1) {
+        branch = parseOptions(toRun[i]);
+        obj = global.blocks[branch.name];
+        compile(obj, branch.actions);
+      }
+      
+    },
+    def : function (storage, comobj) {
+      compile(storage, storage.primary);
+    },
+    primary : function (storage, comobj) {
+      storage.primary = comobj.actions;
+      compile(storage, comobj.actions);
+    },
     run : function (storage) { 
       var result,
         type = storage.type,
@@ -629,8 +752,10 @@ var parseOptions = function (options, defaults) { //done
       target$[(parameters[1] || "html")](text);
     },
     style : function (storage, comobj) {
-      var selector, cssmaps, parameters, target$,
-        type = storage.type
+      var selector, cssmaps, parameters, target$, text, ss, i, n, sheet, properties, rules, strrules, rule, selectorText,
+        type = storage.type,
+        attach = false,
+        remove = true
       ;
       if (type === "css") {
         cssmaps = cssParser(storage.text);
@@ -638,172 +763,85 @@ var parseOptions = function (options, defaults) { //done
         text = lessed(storage.text );
         cssmaps = cssParser(text );
       } else {
-        cssParser(storage.result);
+        cssmaps = cssParser(storage.result);
+      }
+
+      if (comobj.hasOwnProperty("properties") ) {
+        properties = comobj.properties;
+        if (properties.global) {
+          attach = true;
+        } 
+        if (properties.keep) {
+          remove = false;
+        }
       }
       
-      if (comobj.hasOwnProperty("parameters") ) {
-        parameters = comobj.parameters;
-      } else {
-        parameters = [null, "html"];
-      }
-      
-      if ( (parameters[0] === null) || parameters[0] === "null" ) { //use all
-          target$ = $('body');
-      } else { //use the selector
-        target$ = $(parameters[0]);
-      }
-      
-      console.log(type, parameters, target$, cssmaps)
-      
-      for (selector in cssmaps) {
-        target$.find(selector).css(cssmaps[selector]);
-      }
-    },
-    lib : function (storage) {
-      var result,
-        type = storage.type,
-        results = storage.results,
-        text = storage.text
-      ;
-      
-      //run or apply lib only once
-      if (global.urls[storage.url].executed === false) {
-        switch (type) {
-          case "js" : 
-            eval(text);
-          break;
-          case "html" : 
-            storage.result = text;
-          break;
-          case "css" :
-            //test in IE. may need something else
-            var style = document.createElement('style');
-            style.type = 'text/css';
-            style.textContent = text;
-          break;
-          case "md" : //really odd to have this
-            storage.result = result = marked(text);
-          break;
-          case "less" : 
-            (new less.Parser()).parse(text, function (err, css) {
-              if (err) {
-                if (typeof console !== 'undefined' && console.error) {
-                  console.error(err);
-                }
-              } else {
-                var style = document.createElement('style');
-                style.type = 'text/css';
-                style.textContent = css.toCSS();
+      if (attach) {
+        sheet = document.styleSheets[document.styleSheets.length-1];
+        for (selector in cssmaps) {
+          rules = cssmaps[selector];
+          strrules = "";
+          for (rule in rules) {
+            strrules +=  rule + ":" + rules[rule] + ";\n";
+          }
+          if (remove) { //probably don't want to do this on a large sheet
+            n = sheet.rules.length;
+            for (i = n-1; i > -1; i -= 1) { //delete latest one
+              selectorText = sheet.rules[i].selectorText;
+              if (selectorText === selector) {
+                sheet.deleteRule(i); 
+                break; // assume one instance 
               }
-            });
-            break;
+            }
+          }
+          if (sheet.insertRule) {
+            sheet.insertRule(selector + '{\n' + strrules + '\n}\n', sheet.rules.length);
+          } else if (sheet.addRule) {
+
+          }          
         }
-        
-      }
-    },
-    click : function (storage, comobj) {
-      
-      var hideButton, showButton, parameters, hide, hcb, scb,
-        self$ = storage.code$,
-        container$ = storage.container$
-      ;
-      
-      console.log(storage, comobj);
-      
-      if (comobj.hasOwnProperty("parameters") ) {
-        parameters = comobj.parameters;
-        hide = parameters[0];
-        hcb = parameters[1];
-        scb = parameters[2];
-      } 
-      hideButton = $("<button>"+ (hcb ||  "Hide Code") + "</button>");
-      showButton = $("<button>"+ (scb ||  "Show Code") + "</button>");
-      /*
-      if (storage.isLink) {
-        if (storage.inline) {
-          storage.self$.hide();
-          element = $("<code>"+text+"</code>");
-          element.inline = true;
-          container.prepend(element); 
-        } else {
-          element.hide();
-          element = "<pre><code>"+text+"</pre></code>";
-          element.inline = false;
-          container.prepend(element);
-        }
-      }
-      */
-      
-      
-      hideButton.click(function () {
-        self$.hide();
-        hideButton.hide();
-        showButton.show();
-      });
-      showButton.click(function () {
-        self$.show();
-        hideButton.show();
-        showButton.hide();
-      });
-      
-      container$.append(showButton);
-      container$.append(hideButton);
-      
-      if (hide === "hide") {
-        hideButton.click();
       } else {
-        showButton.click();
+        if (comobj.hasOwnProperty("parameters") ) {
+          parameters = comobj.parameters;
+        } else {
+          parameters = [null, "html"];
+        }
+
+        if ( (parameters[0] === null) || parameters[0] === "null" ) { //use all
+            target$ = $('body');
+        } else { //use the selector
+          target$ = $(parameters[0]);
+        }
+
+        for (selector in cssmaps) {
+          target$.find(selector).css(cssmaps[selector]);
+        }
       }
       
-      //setup buttons to click to run. the run click runs run, followed by the append
-      
     },
-    need : function (storage, comobj) {  //no functionality for detecting dependency loops!
-      var i, n, cur,
-        names = Array.prototype.slice.apply(arguments, 1),
-        waiting = global.waiting,
-        needs = global.needs,
-        blocks = global.blocks,
-        dependencies = global.dependencies,
-        name = storage.name,
-        run = true
+    attach : function (storage, comobj) {
+      var  css,  style,
+        type = storage.type
       ;
-      for (i = 0; i < n; i += 1) {
-        cur = names[i];
-        //dependent for all time
-        if (dependencies.hasOwnProperty(cur) ) {
-          dependencies[cur].push(name);
-        } else {
-          dependencies[cur] = [name];
-        }
-        if (!(blocks.hasOwnProperty(cur) ) ) {
-          //name has not been registered yet
-          run = false; 
-          if (waiting.hasOwnProperty(name) ) {
-            waiting[name].push(cur);
-          } else {
-            waiting[name] = [cur];
-          }
-          if (needs.hasOwnProperty(cur) ) {
-            needs[cur].push(name);
-          } else {
-            needs[cur] = [name];
-          }
-          
-        }
+      if (type === "css") {
+        css = storage.text;
+      } else if (type === "less") {
+        css = lessed(storage.text );
+      } else {
+        css = storage.result;
       }
+            
+      style = document.createElement('style');
+      style.type = 'text/css';
+      style.textContent = css;
+      style.innerHTML = css;
+      style.rel = 'stylesheet';
+      //style.media = 'screen';
+      style.title = storage.name;
+      document.getElementsByTagName("head")[0].appendChild(style);
+      
     },
-    show : function (container, element, type, text, storage){
-      if (element.isLink) {
-        if (element.inline) {
-          container.prepend("<code>"+text+"</code>");
-          element.hide();
-        } else {
-          container.prepend("<pre><code>"+text+"</pre></code>");
-          element.hide();
-        }
-      }
-    },
+    
     hide : function (storage) { //done
       storage.code$.hide(); 
     },
@@ -840,23 +878,7 @@ var parseOptions = function (options, defaults) { //done
         scb = parameters[2];
       } 
       hideButton = $("<button>"+ (hcb ||  "Hide Code") + "</button>");
-      showButton = $("<button>"+ (scb ||  "Show Code") + "</button>");
-      /*
-      if (storage.isLink) {
-        if (storage.inline) {
-          storage.self$.hide();
-          element = $("<code>"+text+"</code>");
-          element.inline = true;
-          container.prepend(element); 
-        } else {
-          element.hide();
-          element = "<pre><code>"+text+"</pre></code>";
-          element.inline = false;
-          container.prepend(element);
-        }
-      }
-      */
-      
+      showButton = $("<button>"+ (scb ||  "Show Code") + "</button>");     
       
       hideButton.click(function () {
         self$.hide();
@@ -877,18 +899,6 @@ var parseOptions = function (options, defaults) { //done
       } else {
         showButton.click();
       }              
-    },
-    //append|prepend|before|after|html|text
-    html : function (storage) { //container, element, type, text, storage, selector){
-      if (selector) {
-        if (storage.hasOwnProperty("results")) {
-          $(selector).html(storage.result);          
-        }          
-      } else {
-        if (storage.hasOwnProperty("results")) {
-          container.append(storage.result);          
-        }            
-      }
     },
     text : function (storage, comobj){
       var selector;
@@ -914,3 +924,152 @@ var parseOptions = function (options, defaults) { //done
 // use fake functions for codeMirror, marked, less so they can be called back later. probably need to setup compile as async.
 //  setpRunScripts(jQuery, codeMirror, marked, less);
 
+/*
+lib : function (storage) {
+  var result,
+    type = storage.type,
+    results = storage.results,
+    text = storage.text
+  ;
+  
+  //run or apply lib only once
+  if (global.urls[storage.url].executed === false) {
+    switch (type) {
+      case "js" : 
+        eval(text);
+      break;
+      case "html" : 
+        storage.result = text;
+      break;
+      case "css" :
+        //test in IE. may need something else
+        var style = document.createElement('style');
+        style.type = 'text/css';
+        style.textContent = text;
+      break;
+      case "md" : //really odd to have this
+        storage.result = result = marked(text);
+      break;
+      case "less" : 
+        (new less.Parser()).parse(text, function (err, css) {
+          if (err) {
+            if (typeof console !== 'undefined' && console.error) {
+              console.error(err);
+            }
+          } else {
+            var style = document.createElement('style');
+            style.type = 'text/css';
+            style.textContent = css.toCSS();
+          }
+        });
+        break;
+    }
+    
+  }
+},
+
+
+click : function (storage, comobj) {
+  
+  var hideButton, showButton, parameters, hide, hcb, scb,
+    self$ = storage.code$,
+    container$ = storage.container$
+  ;
+  
+  console.log(storage, comobj);
+  
+  if (comobj.hasOwnProperty("parameters") ) {
+    parameters = comobj.parameters;
+    hide = parameters[0];
+    hcb = parameters[1];
+    scb = parameters[2];
+  } 
+  hideButton = $("<button>"+ (hcb ||  "Hide Code") + "</button>");
+  showButton = $("<button>"+ (scb ||  "Show Code") + "</button>");
+  
+  if (storage.isLink) {
+    if (storage.inline) {
+      storage.self$.hide();
+      element = $("<code>"+text+"</code>");
+      element.inline = true;
+      container.prepend(element); 
+    } else {
+      element.hide();
+      element = "<pre><code>"+text+"</pre></code>";
+      element.inline = false;
+      container.prepend(element);
+    }
+  }
+  
+  
+  
+  hideButton.click(function () {
+    self$.hide();
+    hideButton.hide();
+    showButton.show();
+  });
+  showButton.click(function () {
+    self$.show();
+    hideButton.show();
+    showButton.hide();
+  });
+  
+  container$.append(showButton);
+  container$.append(hideButton);
+  
+  if (hide === "hide") {
+    hideButton.click();
+  } else {
+    showButton.click();
+  }
+  
+  //setup buttons to click to run. the run click runs run, followed by the append
+  
+},
+need : function (storage, comobj) {  //no functionality for detecting dependency loops!
+  var i, n, cur,
+    names = Array.prototype.slice.apply(arguments, 1),
+    waiting = global.waiting,
+    needs = global.needs,
+    blocks = global.blocks,
+    dependencies = global.dependencies,
+    name = storage.name,
+    run = true
+  ;
+  for (i = 0; i < n; i += 1) {
+    cur = names[i];
+    //dependent for all time
+    if (dependencies.hasOwnProperty(cur) ) {
+      dependencies[cur].push(name);
+    } else {
+      dependencies[cur] = [name];
+    }
+    if (!(blocks.hasOwnProperty(cur) ) ) {
+      //name has not been registered yet
+      run = false; 
+      if (waiting.hasOwnProperty(name) ) {
+        waiting[name].push(cur);
+      } else {
+        waiting[name] = [cur];
+      }
+      if (needs.hasOwnProperty(cur) ) {
+        needs[cur].push(name);
+      } else {
+        needs[cur] = [name];
+      }
+      
+    }
+  }
+},
+show : function (container, element, type, text, storage){
+  if (element.isLink) {
+    if (element.inline) {
+      container.prepend("<code>"+text+"</code>");
+      element.hide();
+    } else {
+      container.prepend("<pre><code>"+text+"</pre></code>");
+      element.hide();
+    }
+  }
+},
+*/

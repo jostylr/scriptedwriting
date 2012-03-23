@@ -40,6 +40,8 @@
   
   </script>
   
+  <style></style>
+  
 </head>
 
 <body>
@@ -169,34 +171,44 @@ some `html.hide.insert: <p id="dude"><span class="great">empty<span></p>`
         
 ## Cooking it all up
 
-html container
+## HTML
+
+First we create an html container for what is to follow: 
 
     html.insert
     <div id="cook"><div class="md"></div><table></table></div>
 
-markdown in it
-    
+The line html.insert will insert the given HTML right after the code. Use .hide to hide the code. 
+
+## Markdown
+
+Writing actual text in HTML is annoying so we use markdown to create it: 
+
     md.insert("#cook .md")
     Some markdown to insert into div
-    
+
     1. Just a list
     2. Style it
     3. Cooly
-    
-    Done with list now some code
-    
-        if (code) {
-          console.log("cool");
-        }
 
-css styling
+    Done with list now some code
+
+We use md.insert("#cook .md")  to insert the marked text into the classy md div in the cook div. 
+
+## CSS
+
+Let's get some color. We use CSS: 
 
     css.style("#cook")
     ol {color : green}
 
-javascript generation
+The line css.style("#cook") says to apply the styles to the id item cook. 
 
-    js.strict.insert("#cook table").edit[strict.insert("#cook table")]
+## JavaScript
+
+Next we use JavaScript to create a table of values:
+
+    js.strict.insert("#cook table").edit[''.act(".def#trcolor")]
     var i, 
       trs = [],
       n = 10
@@ -206,17 +218,44 @@ javascript generation
     }
     trs.join("\n")
 
-less styling
+The command strict will evaluate the code in strict mode. This is useful if we do not want to pollute the scope of other code on the page. If we do want scope leak, use run instead. When this code is evaluated, the last line is the returned value. It is inserted into #cook table as HTML. We then get to the edit mode. Yes, you can edit this code. Change some stuff, say change n to 15, and then hit the Apply button. The bracketed stuff is run when the apply button is hit.
 
-    less.style("#cook")
+    js.strict.insert("#cook table", append).edit[] 
+    var i = 12; 
+    "<tr><td>"+i+"</td><td>"+Math.pow(2, i)+"</td></tr>";
+
+
+
+
+## Less
+
+We can also use less.js to style our objects. Let's make the table greenish:
+
+    less.primary[style("#cook")].edit[def]#trcolor
     @base: green;
 
     tr {
       color: saturate(@base, 5%);
       background-color: lighten(spin(@base, 8), 25%);
     }
-    
-All done.
+
+We use style and edit to style the table and to allow the editing of the less code to happen. 
+
+But the above only applies at the moment of application. That is why we use an act clause in the table js code for the application of the edit changes. What if we wanted to have the style get attached to the document? We can do that too.
+
+    less.style{global}.edit[]
+    @base: red;
+
+    #cook tr {
+      color: saturate(@base, 5%);
+      background-color: lighten(spin(@base, 8), 25%);
+    }
+    #cook {
+      color: blue;
+      width : 10px;
+    }
+
+Add some from the last js snippet and you can see how it works. 
     
 ## Literate programming `/*!`
 
