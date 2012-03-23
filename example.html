@@ -19,6 +19,7 @@
   <script src="scriptedwriting.js" type="text/javascript" charset="utf-8"></script>
   
   <link rel="stylesheet" href="vendor/vs.css" type="text/css" media="screen" title="no title" charset="utf-8">
+  <style type="text/css">.scriptedwriting {width:100%}</style>
   
   <script type="text/javascript">     
     setupRunScripts($, CodeMirror, marked, less)
@@ -40,7 +41,6 @@
   
   </script>
   
-  <style></style>
   
 </head>
 
@@ -241,9 +241,9 @@ We can also use less.js to style our objects. Let's make the table greenish:
 
 We use style and edit to style the table and to allow the editing of the less code to happen. 
 
-But the above only applies at the moment of application. That is why we use an act clause in the table js code for the application of the edit changes. What if we wanted to have the style get attached to the document? We can do that too.
+But the above only applies at the moment of application. That is why we use an act clause in the table js code for the application of the edit changes. What if we wanted to have the style get attached to the document? We can do that too. 
 
-    less.style{global}.edit[]
+    less.attach.edit[]
     @base: red;
 
     #cook tr {

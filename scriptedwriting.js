@@ -47,6 +47,29 @@ var setupRunScripts = function ($, codeMirror, marked, less) {
     return nameCounter;
   };
   
+  // need to grab stylesheet for scriptedwriting
+  var sheet = (function () {
+    var i, ret,
+      ss = document.styleSheets,
+      n = ss.length
+    ;
+    for (i = 0; i < n; i += 1) {
+      try {
+        ret = ss[i];
+        if (ret.cssRules) {
+          if (ret.cssRules[0].selectorText === ".scriptedwriting") {
+            ret.deleteRule(0);
+            return ret;
+          }
+          
+        }        
+      } catch (e) {
+        console.log(e);
+      }
+    }
+  }());
+  
+  
   //converts css syntax into a map for jquery to apply
   var cssParser = function (text) {
     var i, cur, n, pieces, selector, map, ii, nn, properties, prop,
@@ -752,7 +775,39 @@ var parseOptions = function (options, defaults) { //done
       target$[(parameters[1] || "html")](text);
     },
     style : function (storage, comobj) {
-      var selector, cssmaps, parameters, target$, text, ss, i, n, sheet, properties, rules, strrules, rule, selectorText,
+      var selector, cssmaps, parameters, target$, text,
+        type = storage.type,
+        attach = false,
+        remove = true
+      ;
+      if (type === "css") {
+        cssmaps = cssParser(storage.text);
+      } else if (type === "less") {
+        text = lessed(storage.text );
+        cssmaps = cssParser(text );
+      } else {
+        cssmaps = cssParser(storage.result);
+      }
+
+      if (comobj.hasOwnProperty("parameters") ) {
+        parameters = comobj.parameters;
+      } else {
+        parameters = [null, "html"];
+      }
+
+      if ( (parameters[0] === null) || parameters[0] === "null" ) { //use all
+          target$ = $('body');
+      } else { //use the selector
+        target$ = $(parameters[0]);
+      }
+
+      for (selector in cssmaps) {
+        target$.find(selector).css(cssmaps[selector]);
+      }
+     
+    },
+    attach : function (storage, comobj) {
+      var selector, cssmaps, text, i, n, properties, rules, strrules, rule, selectorText,
         type = storage.type,
         attach = false,
         remove = true
@@ -768,61 +823,40 @@ var parseOptions = function (options, defaults) { //done
 
       if (comobj.hasOwnProperty("properties") ) {
         properties = comobj.properties;
-        if (properties.global) {
-          attach = true;
-        } 
         if (properties.keep) {
           remove = false;
         }
       }
       
-      if (attach) {
-        sheet = document.styleSheets[document.styleSheets.length-1];
-        for (selector in cssmaps) {
-          rules = cssmaps[selector];
-          strrules = "";
-          for (rule in rules) {
-            strrules +=  rule + ":" + rules[rule] + ";\n";
-          }
-          if (remove) { //probably don't want to do this on a large sheet
-            n = sheet.rules.length;
-            for (i = n-1; i > -1; i -= 1) { //delete latest one
-              selectorText = sheet.rules[i].selectorText;
-              if (selectorText === selector) {
-                if (sheet.deleteRule) {
-                  sheet.deleteRule(i); 
-                } else if (sheet.removeRule) {
-                  sheet.removeRule(i);
-                }
-                break; // assume one instance 
+      for (selector in cssmaps) {
+        rules = cssmaps[selector];
+        strrules = "";
+        for (rule in rules) {
+          strrules +=  rule + ":" + rules[rule] + ";\n";
+        }
+        if (remove) { //probably don't want to do this on a large sheet
+          n = sheet.rules.length;
+          for (i = n-1; i > -1; i -= 1) { //delete latest one
+            selectorText = sheet.rules[i].selectorText;
+            if (selectorText === selector) {
+              if (sheet.deleteRule) {
+                sheet.deleteRule(i); 
+              } else if (sheet.removeRule) {
+                sheet.removeRule(i);
               }
+              break; // assume one instance 
             }
           }
-          if (sheet.insertRule) {
-            sheet.insertRule(selector + '{\n' + strrules + '\n}\n', sheet.rules.length);
-          } else if (sheet.addRule) {
-            sheet.addRule(selector, strrules, sheet.rules.length);
-          }          
         }
-      } else {
-        if (comobj.hasOwnProperty("parameters") ) {
-          parameters = comobj.parameters;
-        } else {
-          parameters = [null, "html"];
-        }
-
-        if ( (parameters[0] === null) || parameters[0] === "null" ) { //use all
-            target$ = $('body');
-        } else { //use the selector
-          target$ = $(parameters[0]);
-        }
-
-        for (selector in cssmaps) {
-          target$.find(selector).css(cssmaps[selector]);
-        }
+        if (sheet.insertRule) {
+          sheet.insertRule(selector + '{\n' + strrules + '\n}\n', sheet.rules.length);
+        } else if (sheet.addRule) {
+          sheet.addRule(selector, strrules, sheet.rules.length);
+        }          
       }
       
     },
+    
     hide : function (storage) { //done
       storage.code$.hide(); 
     },
