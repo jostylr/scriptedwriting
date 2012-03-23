@@ -541,7 +541,6 @@ var parseOptions = function (options, defaults) { //done
     ret.name = newName();
   }
   
-  console.log(JSON.stringify(ret))
   return ret; 
 };
     
@@ -657,7 +656,8 @@ var parseOptions = function (options, defaults) { //done
   runScripts.defaults = ".run.edit[.run.text].text";
 
   var modes = {
-    'js' : 'javascript'
+    'js' : 'javascript',
+    'md' : 'markdown'
   };
 
   runScripts.actions = {
@@ -789,7 +789,11 @@ var parseOptions = function (options, defaults) { //done
             for (i = n-1; i > -1; i -= 1) { //delete latest one
               selectorText = sheet.rules[i].selectorText;
               if (selectorText === selector) {
-                sheet.deleteRule(i); 
+                if (sheet.deleteRule) {
+                  sheet.deleteRule(i); 
+                } else if (sheet.removeRule) {
+                  sheet.removeRule(i);
+                }
                 break; // assume one instance 
               }
             }
@@ -797,7 +801,7 @@ var parseOptions = function (options, defaults) { //done
           if (sheet.insertRule) {
             sheet.insertRule(selector + '{\n' + strrules + '\n}\n', sheet.rules.length);
           } else if (sheet.addRule) {
-
+            sheet.addRule(selector, strrules, sheet.rules.length);
           }          
         }
       } else {
@@ -819,29 +823,6 @@ var parseOptions = function (options, defaults) { //done
       }
       
     },
-    attach : function (storage, comobj) {
-      var  css,  style,
-        type = storage.type
-      ;
-      if (type === "css") {
-        css = storage.text;
-      } else if (type === "less") {
-        css = lessed(storage.text );
-      } else {
-        css = storage.result;
-      }
-            
-      style = document.createElement('style');
-      style.type = 'text/css';
-      style.textContent = css;
-      style.innerHTML = css;
-      style.rel = 'stylesheet';
-      //style.media = 'screen';
-      style.title = storage.name;
-      document.getElementsByTagName("head")[0].appendChild(style);
-      
-    },
-    
     hide : function (storage) { //done
       storage.code$.hide(); 
     },
@@ -900,17 +881,13 @@ var parseOptions = function (options, defaults) { //done
         showButton.click();
       }              
     },
-    text : function (storage, comobj){
+    text : function (storage, comobj){ //simple text insert of results. more complicated, use insert
       var selector;
-      if (comobj.hasOwnProperty("parameters") ) {
-        // selectors
+      if (storage.result$) {
+        storage.result$.text(storage.result);
       } else {
-        if (storage.result$) {
-          storage.result$.text(storage.result);
-        } else {
-          storage.result$ = $('<span></span>').text(storage.result);
-          storage.container$.append(storage.result$);
-        }
+        storage.result$ = $('<span></span>').text(storage.result);
+        storage.container$.append(storage.result$);
       }
     }
   }; 
