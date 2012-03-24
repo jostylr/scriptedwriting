@@ -1,5 +1,5 @@
 /*globals $, runScripts, console, marked*/
-/*jslint evil : true */
+/*jslint evil : true, continue : true */
 
 //add trim to strings
 (function () {
@@ -29,14 +29,12 @@
 
 //anon for local closure
 var setupRunScripts = function ($, codeMirror, marked, less) {
-  var compile;
+  var commenceActions;
   
   
   var global = {
     blocks : {}, //storage objects by name from runscripts
-    waiting : {}, //stuff the key is waiting for
     needs : {},  // stuff that needs the key
-    dependencies : {}, //stuff the key uses
     urls : {} //urls loaded, e.g., jsxgraph
   };
   
@@ -48,7 +46,7 @@ var setupRunScripts = function ($, codeMirror, marked, less) {
   };
   
   // need to grab stylesheet for scriptedwriting
-  var sheet = (function () {
+  var sheet = (function () { //done
     var i, ret,
       ss = document.styleSheets,
       n = ss.length
@@ -59,9 +57,15 @@ var setupRunScripts = function ($, codeMirror, marked, less) {
         if (ret.cssRules) {
           if (ret.cssRules[0].selectorText === ".scriptedwriting") {
             ret.deleteRule(0);
+            ret.rules = ret.cssRules;
             return ret;
           }
           
+        } else if (ret.rules) {
+          if (ret.rules[0].selectorText === ".scriptedwriting") {
+            ret.removeRule(0);
+            return ret;
+          }          
         }        
       } catch (e) {
         console.log(e);
@@ -71,7 +75,7 @@ var setupRunScripts = function ($, codeMirror, marked, less) {
   
   
   //converts css syntax into a map for jquery to apply
-  var cssParser = function (text) {
+  var cssParser = function (text) { //done
     var i, cur, n, pieces, selector, map, ii, nn, properties, prop,
       comreg = /(\/\*([^*]|[\r\n]|(\*+([^*\/]|[\r\n])))*\*+\/)|(\/\/.*)/g,
       styles = {}
@@ -123,13 +127,6 @@ var setupRunScripts = function ($, codeMirror, marked, less) {
 
   
 
-  var actionFactory = function(action, params) {
-    return function () {
-      var args = Array.prototype.slice.apply(arguments);
-      return action.apply(this, args.concat(params));
-      
-    };
-  };
 
     //from underscore
   var nativeIndexOf = Array.prototype.indexOf;
@@ -164,38 +161,7 @@ var setupRunScripts = function ($, codeMirror, marked, less) {
  
  //end underscore
  
-  // parse options, giving defaults, returns the functions that get run
-  var actionOptions = function (options, defaults, actions) {
-    var i, cur, fun, params, n,
-      ret = []
-    ;
-    
-    if (options) {
-      options = options.toLowerCase().split(".");
-    } else {
-      options = [];
-    }
 
-
-    
-    n = defaults.length;
-    for (i = 0; i < n; i += 1) {
-      cur = options[i];
-      if (cur) { 
-        // if function name(a, b, c)  no nested commas, no nested functions or parentheses. will be passed as a string
-        if (cur.indexOf("(") !== -1) {
-          fun = cur.split("(");
-          cur = fun[0];
-          params = fun[1].split(")")[0].split(",");
-          ret.push(actionFactory( (actions[cur] || actions[defaults[i]] ), params));
-        } else {
-          ret.push(actions[cur] || actions[defaults[i]]);
-        }
-      } else {
-        ret.push(defaults[i]);
-      }
-    }
-  };
 
   var removeFrom = function (arr, val) {
     var position;
@@ -211,56 +177,52 @@ var setupRunScripts = function ($, codeMirror, marked, less) {
 
 
   var checkNeeds = function (storage)  {
-    var i, n, cur, needy, waiter,
-      needs = global.needs,
-      waiting = global.waiting
+    var i, 
+      name = storage.name,
+      needs = global.needs[name],
+      n = needs.length
     ;
-    
-    
-     //check needed stuff
-    if (needs.hasOwnProperty(name) ) {
-      needy = needs[name];
-      n = needy.length;
-      for (i = 0; i < n; i += 1) {
-        cur = needy[i];
-        //remove this from waiting for cur
-        if (waiting.hasOwnProperty(cur ) ) {
-          waiter = waiting[cur];
-          waiting[cur] = removeFrom(waiter, name);
-          if (waiter.length === 0) {
-            //run cur !!!!!
-            /*
-            curStorage = global.blocks[cur];
-            curActions = [curStorage
-            compile(curStorage, )
-            */
-          } 
-        }
-      } //for 
-      delete needs[name];
+
+    for (i = 0; i < n; i += 1) {
+      
+      commenceActions.apply(null, needs[i]);
     }
+
+    delete global.needs[name];
 
   };
   
   // goes through commands. commands passed in as they are often not storage.command, but a some array of commands.
-  compile = function (storage, commands) {
-    var i, n, 
+  commenceActions = function (storage, commands) {
+    var i, n,
+      needy = false,
       name = storage.name,
-      actions = storage.actions,
-      needs = global.needs
+      actions = storage.actions
     ;
+        
+    if (! commands) {
+      console.log("no commands given to commenceActions", storage, commands);
+      return;
+    }
     
     n = commands.length;
 
     for (i = 0; i < n; i += 1) {
       if (actions.hasOwnProperty(commands[i].command) ) {
-        actions[commands[i].command](storage, commands[i]);
+        needy = actions[commands[i].command](storage, commands[i]) || needy; 
       } else {
         console.log("no action for command", commands[i], actions);        
       }
     }
     
-    checkNeeds(storage);
+    if ( needy === false) {
+      storage.commenced = true;
+      if (  global.needs.hasOwnProperty(name)  ) {
+        checkNeeds(storage);
+      }
+    } else {
+      storage.commenced = false;
+    }
     
   };
         
@@ -585,7 +547,7 @@ var parseOptions = function (options, defaults) { //done
         if (type === "html") {
           data = data.split("<!--split-->")[1];
         }
-        compile(storage);
+        commenceActions(storage);
       }
     });    
   };
@@ -610,6 +572,7 @@ var parseOptions = function (options, defaults) { //done
       ;
       
       storage.code$ = self$;
+      
       
       // look for match
       storage.originalText = text = self$.text();
@@ -637,9 +600,12 @@ var parseOptions = function (options, defaults) { //done
         
         //store in blocks
         if (blocks.hasOwnProperty(name)) {
-          console.log("OVERWRITING: name already used", storage, blocks[name]);
+          console.log("IGNORING: name already used", storage, blocks[name]);
+        } else {
+          blocks[name] = storage;          
+          storage.commenced = false;
         }
-        blocks[name] = storage;
+        
         
         storage.url = url = self$.attr("href"); 
         //if url, then load it. check first to see if already loaded. then use storage to run commands. add in lib command for checking
@@ -649,7 +615,7 @@ var parseOptions = function (options, defaults) { //done
           if (urls.hasOwnProperty(url) )  {
             if (urls[url].received) {
 //              fileIntoStorage(urls[url], storage);
-              compile(storage);
+              commenceActions(storage);
             } else {
               //add storage to be called later
               urls[url].callers.push(storage);
@@ -667,7 +633,9 @@ var parseOptions = function (options, defaults) { //done
             storage.self$ = par$;
           }
           storage.isLink = false;
-          compile(storage, storage.commands);
+                    
+          commenceActions(storage, storage.commands);
+                    
         }
       }
     });
@@ -675,6 +643,7 @@ var parseOptions = function (options, defaults) { //done
   };
 
 
+  // defaults need to be type based
   //default is to run the code snippet, make it editable, append each of the results, and give it no name
   runScripts.defaults = ".run.edit[.run.text].text";
 
@@ -693,16 +662,50 @@ var parseOptions = function (options, defaults) { //done
       for (i = 0; i < n; i += 1) {
         branch = parseOptions(toRun[i]);
         obj = global.blocks[branch.name];
-        compile(obj, branch.actions);
+        commenceActions(obj, branch.actions);
       }
       
     },
-    def : function (storage, comobj) {
-      compile(storage, storage.primary);
+    //idempotent meaning it can be run again and again until all needs are met
+    needs : function (storage, comobj) { // intent is mainly for running after urls fetched, e.g., jsxgraph
+      //parameters are names of needs, actions are to be taken when done, property primary makes this a primary when run
+      var name, i,
+        parameters = comobj.parameters || [],
+        n = parameters.length,
+        actions = comobj.actions || [],
+        properties = comobj.properties 
+      ;
+            
+      for (i = 0; i < n; i += 1) {
+        name = parameters[i];
+        if (global.blocks.hasOwnProperty(name) && global.blocks[name].commenced === true ) {
+          continue; //all parsed and ran
+        } 
+        if (global.needs.hasOwnProperty(name)) {
+          //already needed by something
+          global.needs[name].push([storage, [comobj ] ]);
+        } else {
+          global.needs[name] = [ [storage, [comobj ] ] ];
+        }
+        if (properties && properties.primary) { // QUESTIONABLE
+          storage.primary = [comobj]; //needs is run each time primary is called
+        }
+        
+        return true; //needy
+      }
+      // all needs met, run it
+      if (properties && properties.primary) {
+        storage.primary = comobj.actions;
+      }
+      storage.commenced = (!commenceActions(storage, comobj.actions) );
+    
+    },
+    def : function (storage, comobj) {  //default uses primary
+      commenceActions(storage, storage.primary);
     },
     primary : function (storage, comobj) {
       storage.primary = comobj.actions;
-      compile(storage, comobj.actions);
+      commenceActions(storage, comobj.actions);
     },
     run : function (storage) { 
       var result,
@@ -712,7 +715,12 @@ var parseOptions = function (options, defaults) { //done
       ;
       switch (type) {
         case "js" : 
-          result = eval(text);
+        try {
+          result = eval(storage.text);
+        } catch (e) {
+          console.log(e);
+          result = '';
+        }
         break;
         case "html" :
           result = text;
@@ -733,7 +741,12 @@ var parseOptions = function (options, defaults) { //done
     strict : function (storage) {
       "use strict";
        var result;
-       result = eval(storage.text);
+       try {
+         result = eval(storage.text);
+       } catch (e) {
+         console.log(e);
+         result = '';
+       }
        storage.result = result;
        storage.results.push(result);
     },
@@ -874,7 +887,7 @@ var parseOptions = function (options, defaults) { //done
           actions = comobj.actions;
           storage.editButton$ = $("<button>Apply</button>").click(function () {
             storage.text = editor.getValue();
-            compile(storage, actions); 
+            commenceActions(storage, actions); 
           });
           storage.container$.append(storage.editButton$);
         }
@@ -932,7 +945,7 @@ var parseOptions = function (options, defaults) { //done
   
 };
 
-// use fake functions for codeMirror, marked, less so they can be called back later. probably need to setup compile as async.
+// use fake functions for codeMirror, marked, less so they can be called back later. probably need to setup commenceActions as async.
 //  setpRunScripts(jQuery, codeMirror, marked, less);
 
 /*
