@@ -5,10 +5,10 @@
   <script src="vendor/jquery-1.7.1.min.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/jquery.transparency.min.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/marking.js" type="text/javascript" charset="utf-8"></script>
-   <script src="vendor/highlight.pack.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/less.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/CodeMirror/lib/codemirror.js" type="text/javascript" charset="utf-8"></script>
   <link rel="stylesheet" href="vendor/CodeMirror/lib/codemirror.css" type="text/css" media="screen" title="no title" charset="utf-8">
+  <script src="vendor/CodeMirror/lib/util/runmode.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/CodeMirror/mode/css/css.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/CodeMirror/mode/javascript/javascript.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/CodeMirror/mode/xml/xml.js" type="text/javascript" charset="utf-8"></script>
@@ -28,8 +28,8 @@
       $("#target").
         html(marked(text)).
         runScripts();
-      hljs.initHighlighting.called = false;
-      hljs.initHighlighting();
+//      hljs.initHighlighting.called = false;
+//      hljs.initHighlighting();
     };
 
   $(document).ready(function () {
@@ -82,12 +82,16 @@ Hello `//js.run.hide: console.log("inline");`
 
 ## RUN and TEXT
 
-[js.run.text: should be 7](scripts/seven.html)
+[js.lib[run.text]: should be 7](scripts/seven.html)
 
 Hello `js.run.text: "inline";`
 
     //js.run.text:
-    "block";
+    if (true) {
+      "block";      
+    }
+
+[js.lib[run.text]: should be nothing](scripts/seven.html)
 
 
 ## RUN and TEXT and HIDE
@@ -118,7 +122,7 @@ Hello `js.edit[run]: "inline";`
 
 ## CLICK
 
-[js.click.hide: count](scripts/click.html)
+[click.hide: count](scripts/click.html)
 
 Where are the quotes? `CLICK: alert("bad")`
 

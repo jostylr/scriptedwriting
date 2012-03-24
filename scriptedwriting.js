@@ -28,15 +28,22 @@
 
 
 //anon for local closure
-var setupRunScripts = function ($, codeMirror, marked, less) {
+var setupRunScripts = function ($, codeMirror, marked, less, theme) {
   var commenceActions;
   
+  theme = theme || "cm-s-default";
   
   var global = {
     blocks : {}, //storage objects by name from runscripts
     needs : {},  // stuff that needs the key
     urls : {} //urls loaded, e.g., jsxgraph
   };
+  
+  var modes = {
+    'js' : 'javascript',
+    'md' : 'markdown'
+  };
+  
   
   var nameCounter = 0;
   
@@ -232,6 +239,7 @@ var containIt = function (storage) { // done
   var container$, par$,
     self$ = storage.code$
   ;
+  
     
   if (self$.text().trim() === self$.parent().text().trim()) { //no siblings
     container$ = $("<div class='codeContainer'></div>");
@@ -246,6 +254,7 @@ var containIt = function (storage) { // done
       par$ = self$.parent();
       self$.wrap(container$);
       par$.replaceWith(self$.parent());
+      storage.container$ = self$.parent();
       
     }
   } else {
@@ -254,6 +263,7 @@ var containIt = function (storage) { // done
     storage.container$ = self$.parent();
     storage.inline = true;
   }
+
   
 };
 
@@ -531,8 +541,8 @@ var parseOptions = function (options, defaults) { //done
     
   //$(".posts").runScript();
 
-  var getUrl = function (storage) {
-    var 
+  var getUrl = function (storage, commands) {
+    var gurl,
       url = storage.url,
       type = storage.type
     ;
@@ -540,15 +550,45 @@ var parseOptions = function (options, defaults) { //done
     //if fallback html, convert to type
     
     url = url.replace(".html", "."+type);
+    storage.url = url; 
+    if (global.urls.hasOwnProperty(url) ) {
+      gurl = global.urls[url];
+      if (gurl.retrieved === true) {
+        //already retrieved
+        storage.text = gurl.text;
+        commenceActions(storage, commands);
+      } else {
+        gurl.waiting.push([storage, commands]);
+      }
+      return ;
+    } else {
+      gurl = global.urls[url] = {
+        retrieved : false,
+        waiting : [ [storage, commands] ]
+      };
+    } 
     $.ajax({
       url: url,
       dataType : "text",
       success: function (data) {
+        var i, n, sto, stocom;
         if (type === "html") {
           data = data.split("<!--split-->")[1];
         }
-        commenceActions(storage);
-      }
+        gurl.retrieved = true;
+        gurl.text = data;
+        n = gurl.waiting.length;
+        for (i = 0; i < n; i += 1) {
+          stocom = gurl.waiting[i];
+          sto = stocom[0];
+          sto.text = data;  //storage objects get text as data
+          sto.code$.addClass(theme);
+          codeMirror.runMode(data, modes[type] || type, sto.code$[0]); 
+          
+          commenceActions.apply(null, stocom);
+        }
+        delete gurl.waiting;
+      } // !!!! need error code
     });    
   };
 
@@ -586,10 +626,10 @@ var parseOptions = function (options, defaults) { //done
         
         //clean text
         storage.text = text = text.replace(reg, '').trim();
-        self$.text(text);
+        //self$.text(text);
         
         //type., actions . , name #
-        storage.type = match[1].toLowerCase();
+        type = storage.type = match[1].toLowerCase();
         storage.options = parseOptions(match[2], defaults);
         
         storage.commands = storage.options.actions;
@@ -610,25 +650,22 @@ var parseOptions = function (options, defaults) { //done
         storage.url = url = self$.attr("href"); 
         //if url, then load it. check first to see if already loaded. then use storage to run commands. add in lib command for checking
         if (url) {
-          /*
           storage.isLink = true;
-          if (urls.hasOwnProperty(url) )  {
-            if (urls[url].received) {
-//              fileIntoStorage(urls[url], storage);
-              commenceActions(storage);
-            } else {
-              //add storage to be called later
-              urls[url].callers.push(storage);
-            }
+          storage.link$ = self$;
+          self$.hide();
+          if (self$.parent('div').length === 1) {
+            storage.code$ = $("<code></code>");
+            storage.container$.append($("<pre></pre>").append(storage.code$) );
           } else {
-            urls[url] = {
-              retrieved: false,
-              callers : [storage],
-              executed : false
-            };
-            getUrl(storage);
-          }*/
+            storage.code$ = $("<code></code>");
+            storage.container$.append(storage.code$);            
+          }
+          getUrl(storage, storage.commands);
         } else { //code 
+          self$.html('');
+          self$.addClass(theme);
+          codeMirror.runMode(storage.text, modes[type] || type, self$[0]); 
+          
           if (storage.isPre ){
             storage.self$ = par$;
           }
@@ -647,10 +684,6 @@ var parseOptions = function (options, defaults) { //done
   //default is to run the code snippet, make it editable, append each of the results, and give it no name
   runScripts.defaults = ".run.edit[.run.text].text";
 
-  var modes = {
-    'js' : 'javascript',
-    'md' : 'markdown'
-  };
 
   runScripts.actions = {
     act : function (storage, comobj) {
@@ -699,6 +732,21 @@ var parseOptions = function (options, defaults) { //done
       }
       storage.commenced = (!commenceActions(storage, comobj.actions) );
     
+    },
+    lib : function (storage, comobj) {
+      var
+        url = storage.url,
+        gurl = global.urls[url]
+      ;
+      
+      console.log(storage.name, gurl, url, global.urls)
+      //only for external resources that should be run once
+      if (gurl && (! gurl.ran) ) {
+              console.log(storage.name)
+        commenceActions(storage, comobj.actions);
+        gurl.ran = true;
+      }
+      
     },
     def : function (storage, comobj) {  //default uses primary
       commenceActions(storage, storage.primary);
@@ -934,6 +982,7 @@ var parseOptions = function (options, defaults) { //done
         storage.result$.text(storage.result);
       } else {
         storage.result$ = $('<span></span>').text(storage.result);
+        console.log(storage)
         storage.container$.append(storage.result$);
       }
     }
@@ -1097,3 +1146,22 @@ show : function (container, element, type, text, storage){
   }
 },
 */
+
+          /*
+          storage.isLink = true;
+          if (urls.hasOwnProperty(url) )  {
+            if (urls[url].received) {
+//              fileIntoStorage(urls[url], storage);
+              commenceActions(storage);
+            } else {
+              //add storage to be called later
+              urls[url].callers.push(storage);
+            }
+          } else {
+            urls[url] = {
+              retrieved: false,
+              callers : [storage],
+              executed : false
+            };
+            getUrl(storage);
+          }*/
