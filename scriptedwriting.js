@@ -1,4 +1,4 @@
-/*globals $, runScripts, console, marked*/
+/*globals $, runScripts, console, marked, execScripts, less, jade, CoffeeScript*/
 /*jslint evil : true, continue : true */
 
 //add trim to strings
@@ -26,10 +26,136 @@
 } () ); 
 
 
+// assigning eval to an alias elevates scope to global scope which is preferred. Still returns last result.
+// IE8- behaves as normal with alias. execScripts does global scope, but does not return results :(
+var geval = eval;
+ 
+try {
+  if (execScripts) {
+    geval = function (text) {
+      execScripts(text);
+      return eval(execScripts); // best I can do for supporting results in IE8-
+    };
+  }
+} catch (e) {
+  geval = eval;
+}
+
+
 
 //anon for local closure
-var setupRunScripts = function ($, codeMirror, marked, less, theme) {
+var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
+  
+  
+  var libs = {
+    loaded : {},
+    loading : {}
+  };
+  
+  defurl = defurl || "vendor/";
+  
+  var parseFactory;
+  
+  // this is mental. creates a function that loads up a script and grabs that external function and uses it to run
+  parseFactory = sRS.parseFactory = function (type, command, url, setup) {
+    return function (storage, libs, cb) {
+      if (libs[type] ) {
+        command(storage, cb); 
+      } else {
+        if (libs.loaded[url]) {
+          libs[type] = command;
+          command(storage, cb);
+        } else if (libs.loading.hasOwnProperty(url) ) {
+          libs.loading[url].push([storage, cb]);
+        } else {
+          libs.loading[url] = [[storage, cb]];
+          $.ajax({
+            url: url,
+            dataType : "script",
+            success: function () {
+              var i, 
+                toLoad = libs.loading[url],
+                n = toLoad.length
+              ;
+              if (setup) {
+                setup();
+              }
+              libs[type] = command;
+              for (i = 0; i < n; i += 1) {
+                command.apply(null, libs.loading[url][i]);
+              }
+              delete libs.loading[url];
+              libs.loaded[url] = true;
+            }
+          }); //ajax
+        } 
+      }
+    };
+  };
+  
+  var parsers = {
+    js : function (storage, libs, cb) {
+      storage.parsed = storage.text;
+      cb();
+    },
+    html : function (storage, libs, cb) {
+      storage.parsed = storage.text;
+      cb();
+    }, 
+    css : function (storage, libs, cb) {
+      storage.parsed = storage.text;
+      cb();
+    },
+    md : sRS.parseFactory("md", function (s, cb) {s.parsed = marked(s.text); cb(); }, defurl + "marking.js"),
+    less : sRS.parseFactory("less", function (s, cb) {s.parsed = less.sw(s.text); cb();}, defurl + "less.js", 
+      function () {
+        //converts less into css
+        var lessParser = (new less.Parser());
+
+        less.sw = function (text) {
+          var ret;
+          lessParser.parse(text, function (err, css) {
+          if (err) {
+             if (typeof console !== 'undefined' && console.error) {
+               console.error("error in lessed", err);
+             } 
+             ret = '';
+           } else {
+             text = css.toCSS();
+             ret = text;
+           }
+          });
+          return ret; 
+        };
+      
+      }
+    ),
+    jade : sRS.parseFactory("jade", function (s, cb) {s.parsed =  jade.compile(s.text)(); cb();}, defurl + "jade.js"),
+    jadec : sRS.parseFactory("jadec", function(s, cb) {s.parsed =  jade.compile(s.text); cb();}, defurl + "jade.js"),
+    coffeescript : sRS.parseFactory("coffeescript", function(s, cb) {s.parsed =  CoffeeScript(s.text); cb();}, defurl + "cs.js")
+  };
+  
+  var makeModes = function (type, mode) {
+    return function (s) {
+      s.type = type;
+      s.mode = mode;
+      s.parse = parsers[type];  
+    };
+  };
+  
+  var modes = {
+    js : makeModes("js", "javascript"),
+    html : makeModes("html", "text/html"),
+    css : makeModes("css", "text/css"),
+    md : makeModes("md", "markdown"), 
+    less : makeModes("less", "less"),
+    jade : makeModes("jade", "text/plain"),  //need mode for jade
+    jadec : makeModes("jadec", "text/plain"),
+    coffeescript : makeModes("coffeescript", "text/x-coffeescript")
+  };  
+  
   var commenceActions;
+  
   
   theme = theme || "cm-s-default";
   
@@ -39,10 +165,6 @@ var setupRunScripts = function ($, codeMirror, marked, less, theme) {
     urls : {} //urls loaded, e.g., jsxgraph
   };
   
-  var modes = {
-    'js' : 'javascript',
-    'md' : 'markdown'
-  };
   
   
   var nameCounter = 0;
@@ -113,24 +235,6 @@ var setupRunScripts = function ($, codeMirror, marked, less, theme) {
     return styles;
   };
   
-  //converts less into css
-  var lessParser = (new less.Parser());
-
-  var lessed = function (text) {
-    var ret;
-    lessParser.parse(text, function (err, css) {
-    if (err) {
-       if (typeof console !== 'undefined' && console.error) {
-         console.error("error in lessed", err);
-       } 
-       ret = '';
-     } else {
-       text = css.toCSS();
-       ret = text;
-     }
-    });
-    return ret; 
-  };
 
   
 
@@ -211,25 +315,30 @@ var setupRunScripts = function ($, codeMirror, marked, less, theme) {
       console.log("no commands given to commenceActions", storage, commands);
       return;
     }
-    
-    n = commands.length;
 
-    for (i = 0; i < n; i += 1) {
-      if (actions.hasOwnProperty(commands[i].command) ) {
-        needy = actions[commands[i].command](storage, commands[i]) || needy; 
+    n = commands.length;
+  
+    //calls function that parses text and then it uses a callback to execute commenceActions. This is for lazy loading of libraries such as less
+    storage.parse(storage, libs, function () {
+      for (i = 0; i < n; i += 1) {
+        if (actions.hasOwnProperty(commands[i].command) ) {
+          needy = actions[commands[i].command](storage, commands[i]) || needy; 
+        } else {
+          console.log("no action for command", storage.name, commands[i], storage, actions);        
+        }
+      }
+
+      if ( needy === false) {
+        storage.commenced = true;
+        if (  global.needs.hasOwnProperty(name)  ) {
+          checkNeeds(storage);
+        }
       } else {
-        console.log("no action for command", commands[i], actions);        
+        storage.commenced = false;
       }
-    }
+    }); 
     
-    if ( needy === false) {
-      storage.commenced = true;
-      if (  global.needs.hasOwnProperty(name)  ) {
-        checkNeeds(storage);
-      }
-    } else {
-      storage.commenced = false;
-    }
+
     
   };
         
@@ -283,13 +392,14 @@ var parseOptions = function (options, defaults) { //done
     if (defaults) {
       options = defaults + options;      
     } else {
-      comobj.name = options.slice(1);
-      return comobj;
+      ret.name = options.slice(1);
+      return ret;
     }
   } else if (options[0] !== '.' ) {
     //improve!!!
-    console.log("unrecognized options", options);
-    return comobj;
+    ret.name = newName();
+//    console.log("unrecognized options", options);
+    return ret;
   }
   mode = "action";
   bin = []; //letters go in here
@@ -582,8 +692,8 @@ var parseOptions = function (options, defaults) { //done
           stocom = gurl.waiting[i];
           sto = stocom[0];
           sto.text = data;  //storage objects get text as data
-          sto.code$.addClass(theme);
-          codeMirror.runMode(data, modes[type] || type, sto.code$[0]); 
+          sto.code$.text(data);
+          sto.code$.hide();
           
           commenceActions.apply(null, stocom);
         }
@@ -593,14 +703,15 @@ var parseOptions = function (options, defaults) { //done
   };
 
 
-  var runScripts = function me (defaults, actions, reg) {
+  var runScripts = function me (options) { 
+    options = options || {};
     var name, 
       blocks = global.blocks,
-      urls = global.urls
+      urls = global.urls,
+      defaults = $.extend({}, me.defaults, options.defaults),
+      actions = $.extend({}, me.actions, options.actions),
+      reg = options.reg ||(/^\s*\/?\/?(\w+)([^:\n\r]*)(\:|\n|\r\n|\n\r)/i)
     ;
-    defaults = defaults || me.defaults;
-    actions = $.extend({}, me.actions, actions);
-    reg = reg ||(/^\s*\/?\/?(js|html|css|less|md)([^:\n\r]*)(\:|\n|\r\n|\n\r)/i);
 
     this.find('code, a').each(function () {
       var url, text, match, type, classes, actionFun, container$, par$, namesplit,
@@ -629,7 +740,17 @@ var parseOptions = function (options, defaults) { //done
         //self$.text(text);
         
         //type., actions . , name #
-        type = storage.type = match[1].toLowerCase();
+        type = match[1].toLowerCase();
+        (modes[type] || function (storage) {
+          storage.type = type;
+          storage.mode = "text/plain"; 
+          storage.parse = function (s, libs, cb) {
+            storage.parsed = s.text; 
+            cb();
+          };
+        }) (storage);
+        
+          
         storage.options = parseOptions(match[2], defaults);
         
         storage.commands = storage.options.actions;
@@ -640,7 +761,7 @@ var parseOptions = function (options, defaults) { //done
         
         //store in blocks
         if (blocks.hasOwnProperty(name)) {
-          console.log("IGNORING: name already used", storage, blocks[name]);
+          console.log("IGNORING: name already used", name, storage, blocks[name]);
         } else {
           blocks[name] = storage;          
           storage.commenced = false;
@@ -664,7 +785,7 @@ var parseOptions = function (options, defaults) { //done
         } else { //code 
           self$.html('');
           self$.addClass(theme);
-          codeMirror.runMode(storage.text, modes[type] || type, self$[0]); 
+          codeMirror.runMode(storage.text, storage.mode, self$[0]); 
           
           if (storage.isPre ){
             storage.self$ = par$;
@@ -682,7 +803,12 @@ var parseOptions = function (options, defaults) { //done
 
   // defaults need to be type based
   //default is to run the code snippet, make it editable, append each of the results, and give it no name
-  runScripts.defaults = ".run.edit[.run.text].text";
+  runScripts.defaults = {
+    js : ".run.edit[.run.text].text",
+    html : ".insert.hide",
+    css : ".apply.hide",
+    md : ".in"
+  };
 
 
   runScripts.actions = {
@@ -739,10 +865,8 @@ var parseOptions = function (options, defaults) { //done
         gurl = global.urls[url]
       ;
       
-      console.log(storage.name, gurl, url, global.urls)
       //only for external resources that should be run once
       if (gurl && (! gurl.ran) ) {
-              console.log(storage.name)
         commenceActions(storage, comobj.actions);
         gurl.ran = true;
       }
@@ -759,58 +883,45 @@ var parseOptions = function (options, defaults) { //done
       var result,
         type = storage.type,
         results = storage.results,
-        text = storage.text
+        text = storage.parsed
       ;
-      switch (type) {
-        case "js" : 
+      if (storage.hasOwnProperty("properties") && storage.properties.hasOwnProperty("local")) {
         try {
-          result = eval(storage.text);
+          result = eval(text);
         } catch (e) {
           console.log(e);
           result = '';
+        }          
+      } else {
+        try {
+          result = geval(text);
+        } catch (f) {
+          console.log(f);
+          result = '';
         }
-        break;
-        case "html" :
-          result = text;
-        break;
-        case "css" :
-          result = cssParser(text);
-        break;
-        case "md" :
-          result = marked(text);
-        break;
-        case "less" :
-          result = lessed(text);
-        break;
-      }
-      storage.result = result;
+      } 
+      storage.parsed = result;
       results.push(result);
     }, 
     strict : function (storage) {
       "use strict";
        var result;
        try {
-         result = eval(storage.text);
+         result = eval(storage.parsed);
        } catch (e) {
          console.log(e);
          result = '';
        }
-       storage.result = result;
+       storage.parsed = result;
        storage.results.push(result);
+    },    
+    reset : function (storage) {
+      storage.parse(storage, $.noop);
     },
     insert : function (storage, comobj) { //insert html
-      var text, target$, parameters,
-        type = storage.type
+      var target$, parameters,
+        text = storage.parsed
       ;
-      
-      
-      if (type === "html") {
-        text = storage.text;
-      } else if (type === "md") {
-        text = marked(storage.text);
-      } else {
-        text = storage.result;
-      }
       
       
       if (comobj.hasOwnProperty("parameters") ) {
@@ -836,19 +947,10 @@ var parseOptions = function (options, defaults) { //done
       target$[(parameters[1] || "html")](text);
     },
     style : function (storage, comobj) {
-      var selector, cssmaps, parameters, target$, text,
-        type = storage.type,
-        attach = false,
-        remove = true
+      var selector, cssmaps, parameters, target$, text
       ;
-      if (type === "css") {
-        cssmaps = cssParser(storage.text);
-      } else if (type === "less") {
-        text = lessed(storage.text );
-        cssmaps = cssParser(text );
-      } else {
-        cssmaps = cssParser(storage.result);
-      }
+            
+      cssmaps = cssParser(storage.parsed);
 
       if (comobj.hasOwnProperty("parameters") ) {
         parameters = comobj.parameters;
@@ -868,19 +970,12 @@ var parseOptions = function (options, defaults) { //done
      
     },
     attach : function (storage, comobj) {
-      var selector, cssmaps, text, i, n, properties, rules, strrules, rule, selectorText,
-        type = storage.type,
-        attach = false,
+      var selector, cssmaps, i, n, properties, rules, strrules, rule, selectorText,
         remove = true
       ;
-      if (type === "css") {
-        cssmaps = cssParser(storage.text);
-      } else if (type === "less") {
-        text = lessed(storage.text );
-        cssmaps = cssParser(text );
-      } else {
-        cssmaps = cssParser(storage.result);
-      }
+
+      
+      cssmaps = cssParser(storage.parsed);
 
       if (comobj.hasOwnProperty("properties") ) {
         properties = comobj.properties;
@@ -921,6 +1016,10 @@ var parseOptions = function (options, defaults) { //done
     hide : function (storage) { //done
       storage.code$.hide(); 
     },
+    show : function (storage, comobj) {
+      storage.code$.show().addClass(theme);
+      codeMirror.runMode(storage.text, storage.mode, storage.code$[0]); 
+    },
     edit : function (storage, comobj){ //working. needs sprucing
         var actions, editor,
           mirror = $("<div class='mirror'></div>")
@@ -928,7 +1027,7 @@ var parseOptions = function (options, defaults) { //done
         storage.code$.replaceWith(mirror);
         editor = codeMirror(mirror[0], {
           value : storage.text,
-          mode : (modes[storage.type] || storage.type),
+          mode : storage.mode,
           lineNumbers : true
         });
         if (comobj.hasOwnProperty("actions") ) {
@@ -976,192 +1075,65 @@ var parseOptions = function (options, defaults) { //done
         showButton.click();
       }              
     },
+    event : function (storage, comobj) { //event[stuff to act](event1, event2,...)
+      var evnt, i, evntActions,
+        container$ = storage.container$,
+        parameters = comobj.parameters || ["click"],
+        n = parameters.length
+      ;
+
+      evntActions = function () {
+        commenceActions(storage, comobj.actions); 
+      };
+      
+      for (i = 0; i < n; i += 1){
+        evnt = parameters[i];
+        container$.addClass(evnt);
+        container$.on(evnt+".action",  evntActions);        
+      }
+    },
+    button : function (storage, comobj) { //button[stuff to act](text, click)
+      var 
+        parameters = comobj.parameters || ["Click Me"],
+        text = parameters[0],
+        button$ = $("<button>"+text+"</button>"),
+        properties = comobj.properties || {}
+      ;
+      
+      button$.
+        on("click.action", function () {
+          commenceActions(storage, comobj.actions); 
+        }).
+        addClass("action")
+      ;
+      
+      storage.container$.append(button$);
+      
+      if (properties.hasOwnProperty("now") ) {
+        commenceActions(storage, comobj.actions); 
+      }
+            
+      if (properties.hasOwnProperty("once") ) {
+        button$.on("click", function () {
+          button$.remove();
+        });
+      } 
+      
+    },
     text : function (storage, comobj){ //simple text insert of results. more complicated, use insert
       var selector;
       if (storage.result$) {
         storage.result$.text(storage.result);
       } else {
         storage.result$ = $('<span></span>').text(storage.result);
-        console.log(storage)
         storage.container$.append(storage.result$);
       }
     }
   }; 
 
 
+
   $.fn.runScripts = runScripts;
 //  $.fn.loadLibs = loadLibs;
   
 };
-
-// use fake functions for codeMirror, marked, less so they can be called back later. probably need to setup commenceActions as async.
-//  setpRunScripts(jQuery, codeMirror, marked, less);
-
-/*
-lib : function (storage) {
-  var result,
-    type = storage.type,
-    results = storage.results,
-    text = storage.text
-  ;
-  
-  //run or apply lib only once
-  if (global.urls[storage.url].executed === false) {
-    switch (type) {
-      case "js" : 
-        eval(text);
-      break;
-      case "html" : 
-        storage.result = text;
-      break;
-      case "css" :
-        //test in IE. may need something else
-        var style = document.createElement('style');
-        style.type = 'text/css';
-        style.textContent = text;
-      break;
-      case "md" : //really odd to have this
-        storage.result = result = marked(text);
-      break;
-      case "less" : 
-        (new less.Parser()).parse(text, function (err, css) {
-          if (err) {
-            if (typeof console !== 'undefined' && console.error) {
-              console.error(err);
-            }
-          } else {
-            var style = document.createElement('style');
-            style.type = 'text/css';
-            style.textContent = css.toCSS();
-          }
-        });
-        break;
-    }
-    
-  }
-},
-
-
-click : function (storage, comobj) {
-  
-  var hideButton, showButton, parameters, hide, hcb, scb,
-    self$ = storage.code$,
-    container$ = storage.container$
-  ;
-  
-  console.log(storage, comobj);
-  
-  if (comobj.hasOwnProperty("parameters") ) {
-    parameters = comobj.parameters;
-    hide = parameters[0];
-    hcb = parameters[1];
-    scb = parameters[2];
-  } 
-  hideButton = $("<button>"+ (hcb ||  "Hide Code") + "</button>");
-  showButton = $("<button>"+ (scb ||  "Show Code") + "</button>");
-  
-  if (storage.isLink) {
-    if (storage.inline) {
-      storage.self$.hide();
-      element = $("<code>"+text+"</code>");
-      element.inline = true;
-      container.prepend(element); 
-    } else {
-      element.hide();
-      element = "<pre><code>"+text+"</pre></code>";
-      element.inline = false;
-      container.prepend(element);
-    }
-  }
-  
-  
-  
-  hideButton.click(function () {
-    self$.hide();
-    hideButton.hide();
-    showButton.show();
-  });
-  showButton.click(function () {
-    self$.show();
-    hideButton.show();
-    showButton.hide();
-  });
-  
-  container$.append(showButton);
-  container$.append(hideButton);
-  
-  if (hide === "hide") {
-    hideButton.click();
-  } else {
-    showButton.click();
-  }
-  
-  //setup buttons to click to run. the run click runs run, followed by the append
-  
-},
-need : function (storage, comobj) {  //no functionality for detecting dependency loops!
-  var i, n, cur,
-    names = Array.prototype.slice.apply(arguments, 1),
-    waiting = global.waiting,
-    needs = global.needs,
-    blocks = global.blocks,
-    dependencies = global.dependencies,
-    name = storage.name,
-    run = true
-  ;
-  for (i = 0; i < n; i += 1) {
-    cur = names[i];
-    //dependent for all time
-    if (dependencies.hasOwnProperty(cur) ) {
-      dependencies[cur].push(name);
-    } else {
-      dependencies[cur] = [name];
-    }
-    if (!(blocks.hasOwnProperty(cur) ) ) {
-      //name has not been registered yet
-      run = false; 
-      if (waiting.hasOwnProperty(name) ) {
-        waiting[name].push(cur);
-      } else {
-        waiting[name] = [cur];
-      }
-      if (needs.hasOwnProperty(cur) ) {
-        needs[cur].push(name);
-      } else {
-        needs[cur] = [name];
-      }
-      
-    }
-  }
-},
-show : function (container, element, type, text, storage){
-  if (element.isLink) {
-    if (element.inline) {
-      container.prepend("<code>"+text+"</code>");
-      element.hide();
-    } else {
-      container.prepend("<pre><code>"+text+"</pre></code>");
-      element.hide();
-    }
-  }
-},
-*/
-
-          /*
-          storage.isLink = true;
-          if (urls.hasOwnProperty(url) )  {
-            if (urls[url].received) {
-//              fileIntoStorage(urls[url], storage);
-              commenceActions(storage);
-            } else {
-              //add storage to be called later
-              urls[url].callers.push(storage);
-            }
-          } else {
-            urls[url] = {
-              retrieved: false,
-              callers : [storage],
-              executed : false
-            };
-            getUrl(storage);
-          }*/
