@@ -65,3 +65,35 @@ incorporate less: [so jrburke](http://stackoverflow.com/questions/5889901/requir
   }
 });
 
+
+geval, plugin for more behaviors, figure out whether results should be or not, literate programming
+
+_n("name here")  inserting named section
+_t(setup, expected, actual)  testing sample
+
+name parsing: folder/file/part  with a possible + at the beginning or end to indicate adding to another bit
+
+var  just, undefined, variables,
+  assignedVar = "whatever",
+  another = [great, job]
+;
+
+split text into new lines to begin with. helps with line counts 
+at top of a block.
+if "var" at beginning, then go into chunking. 
+First line: grab stuff until ,  then new var, new var, ...  until \n
+after, one var per line with =    name = whatever possibly check if last character is a comma (\n already split away)
+then ; 
+
+With vars in hand, one can create super var list at top of enclosing scope (function top)
+
+.toggle(first, second.classy, third)[o[whatever].o[otherever].o[more ever]]
+
+so the parameters are the names and class of the buttons. The o[] are the actions to be taken, paired in correspondence to position. 
+
+defaults for each type
+
+
+
+
+
