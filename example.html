@@ -6,6 +6,8 @@
   <script src="vendor/jquery.transparency.min.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/marking.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/less.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/jade.js" type="text/javascript" charset="utf-8"></script>
+  
   <script src="vendor/CodeMirror/lib/codemirror.js" type="text/javascript" charset="utf-8"></script>
   <link rel="stylesheet" href="vendor/CodeMirror/lib/codemirror.css" type="text/css" media="screen" title="no title" charset="utf-8">
   <script src="vendor/CodeMirror/lib/util/runmode.js" type="text/javascript" charset="utf-8"></script>
@@ -15,6 +17,8 @@
   <script src="vendor/CodeMirror/mode/htmlmixed/htmlmixed.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/CodeMirror/mode/less/less.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/CodeMirror/mode/markdown/markdown.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/CodeMirror/mode/coffeescript/coffeescript.js" type="text/javascript" charset="utf-8"></script>
+  
   
   <script src="scriptedwriting.js" type="text/javascript" charset="utf-8"></script>
   
@@ -22,7 +26,8 @@
   <style type="text/css">.scriptedwriting {width:100%}</style>
   
   <script type="text/javascript">     
-    setupRunScripts($, CodeMirror, marked, less)
+    setupRunScripts($, CodeMirror, "cm-s-default", "vendor/");
+
     markit = function () {
       var text = $("#tobemarked").val();
       $("#target").
@@ -56,6 +61,38 @@ My _name_ is Bob!
 1. I work for you.
 2. I do not work for you.
 3. I think you are swell.
+
+## JSXGRAPH
+
+First we load jsxgraph:
+
+[js.lib[run]#jsxgraph: jsxgraph js](vendor/jsxgraph.js)
+
+and then the css
+
+[css.attach: jsxgraph css](vendor/jsxgraph.css)
+
+insert a box:
+
+    html.insert.hide
+    <div id="jxgbox" style="width:400px; height:400px;"></div>
+
+and then we try some code: 
+
+
+    js.needs(jsxgraph)[event[run](dblclick).event[edit](click)]#setup
+    b = JXG.JSXGraph.initBoard('jxgbox', {boundingbox: [-5, 2, 5, -2]});
+    p1 = b.create('point',[-1,1], {name:'A',size:4});
+    p2 = b.create('point',[2,-1], {name:'B',size:4});
+    li2 = b.create('line',[p1,p2], 
+     {straightFirst:false, straightLast:false, strokeWidth:2, dash:2});
+    
+
+That is the setup
+
+    js.needs(setup)[button{once}[edit.button[run](Run)](Edit)]
+    p1.setPosition(JXG.COORDS_BY_USER, -2, 1);
+    b.update();
 
 ## NEEDS
 
@@ -122,9 +159,9 @@ Hello `js.edit[run]: "inline";`
 
 ## CLICK
 
-[click.hide: count](scripts/click.html)
+[js.event(click)[run]: count](scripts/click.html)
 
-Where are the quotes? `CLICK: alert("bad")`
+Where are the quotes? `js.event(click)[run]: alert("bad")`
 
 ## REPLACE
 
