@@ -9,14 +9,14 @@ This program will produce a function that takes in an integer `m` and returns an
 LP layout: isPrime, firstPrimes, printPrimes, run
 
 
-    /*!firstPrimes=*/
+    js#firstPrimes
     firstPrimes = function (m) {
       var 
         primes = new Array(m), //the first m primes in increasing order
         counter = 0  //keep track of what has already been filled
       ;
   
-      /*!make primes list!*/
+      _n("make primes list");
   
       return primes;
     }
@@ -25,21 +25,21 @@ Nothing too interesting here. Just the basic structure. We could hold all the pr
 
 We can also create an html table by taking in that array and an optional col variable
 
-    /*!printPrimes=*/
+    js#printPrimes
     printPrimes = function (primes, col) {
-      var 
-        table = '<table><tbody>', //to append to 
-        tableEnd = '</tbody></table>' //final bit to make valid
+      var
+        table = "<table><tbody>", //to append to 
+        tableEnd = "</tbody></table>" //final bit to make valid
       ;
   
-      /*!Make rows!*/
+      _n("make rows");
   
       return table+tableEnd;
     }
 
 and then the final bit is to run the code: 
 
-    /*!run=*!/
+    js.run#main
     printPrimes(firstPrimes(200));
 
 
@@ -47,8 +47,11 @@ and then the final bit is to run the code:
 
 To make the rows, we go over the array adding elements to the string `row` with `col` in a row. We append the row to `table`
 
-    /*!Make rows= n:primes.length, row:"<tr>" */
-
+    js#make rows
+    var  i, 
+      n = primes.length,
+      row = "<tr>"
+    ;
     for (i = 0; i < n; i += 1) {
       row += '<td>'+primes[i]+'</td>';
       if (i % col === 0) {
@@ -64,7 +67,10 @@ Now we write an algorithm for computing the primes.
 
 We will ignore all even numbers. To do this, we add 2 to the array to start and then add 2 to `current` having started as an odd
 
-    /*!make primes list= current:3  */
+    js#make primes list
+    var
+      current = 3
+    ;
     primes[0] = 2;
     counter = 1;
     while (counter < m) {
@@ -73,12 +79,12 @@ We will ignore all even numbers. To do this, we add 2 to the array to start and 
         counter += 1;
       }
       current += 2;
-      /*!modify limit!*/
+      _n("modify limit");
     }
 
 The hard work is about to begin with the function isPrime. Actually, we will make it easy on ourselves. A non-prime number is divisible by a number less than the square root of itself. Thus, we only need to check the primes less than the square root of itself. We'll call the number we need to check   `limit`. We start at `primes[1]` because we are only dealing with odds. 
 
-    /*!isPrime= */
+    js#isPrime
     isPrime = function () {
       for (i = 1; i < limit; i += 1) {
         if (current % primes[i]) {
@@ -96,7 +102,11 @@ Because of being divisible by the square root of a number if it is non-prime, we
 
 For example, if the limit is 2, this will check divisibility by 3. This works for the numbers 5, 7, and 9. At 9, we are at the square 9 and we must step up. The next prime is 5. So now we are good until 25. Indeed, 11, 13, 15, 17, 19, 21, 23 are mostly primes and if not, they are divisible by 3 or 5. 
 
-    /*!modify limit= limit:2, square:9*/
+    js#modify limit
+    var
+      limit = 2, 
+      square = 9
+    ;
     if (current === square) {
       limit += 1; 
       square = primes[limit]*primes[limit];
