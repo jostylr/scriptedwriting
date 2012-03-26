@@ -27,9 +27,11 @@
 
 
 var SW = {
-  blocks : {}, //storage objects by name from runscripts
-  needs : {},  // stuff that needs the key
-  urls : {} //urls loaded, e.g., jsxgraph
+  global: {
+    blocks : {}, //storage objects by name from runscripts
+    needs : {},  // stuff that needs the key
+    urls : {} //urls loaded, e.g., jsxgraph
+  }
 };  //for sharing
 
 // assigning eval to an alias elevates scope to global scope which is preferred. Still returns last result.
@@ -69,12 +71,15 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
         command(storage, cb); 
       } else {
         if (libs.loaded[url]) {
+          if (setup) {
+            setup();
+          }
           libs[type] = command;
           command(storage, cb);
         } else if (libs.loading.hasOwnProperty(url) ) {
-          libs.loading[url].push([storage, cb, type, command]);
+          libs.loading[url].push([storage, cb, type, command, setup]);
         } else {
-          libs.loading[url] = [[storage, cb, type, command]];
+          libs.loading[url] = [[storage, cb, type, command, setup]];
           $.ajax({
             url: url,
             dataType : "script",
@@ -83,12 +88,13 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
                 toLoad = libs.loading[url],
                 n = toLoad.length
               ;
-              if (setup) {
-                setup();
-              }
               libs[type] = command;
               for (i = 0; i < n; i += 1) {
                 temp = libs.loading[url][i];
+                if (temp[4]) {
+                  temp[4]();
+                }
+                
                 libs[temp[2]] = temp[3];
                 temp[3].call(null, temp[0], temp[1]);
               }
@@ -107,15 +113,15 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
       cb();
     },
     html : function (storage, libs, cb) {
-      storage.parsed = storage.text;
+      storage.result = storage.parsed = storage.text;
       cb();
     }, 
     css : function (storage, libs, cb) {
-      storage.parsed = storage.text;
+      storage.result = storage.parsed = storage.text;
       cb();
     },
-    md : sRS.parseFactory("md", function (s, cb) {s.parsed = marked(s.text); cb(); }, defurl + "marking.js"),
-    less : sRS.parseFactory("less", function (s, cb) {s.parsed = less.sw(s.text); cb();}, defurl + "less.js", 
+    md : sRS.parseFactory("md", function (s, cb) {s.result = s.parsed = marked(s.text); cb(); }, defurl + "marking.js"),
+    less : sRS.parseFactory("less", function (s, cb) {s.result = s.parsed = less.sw(s.text); cb();}, defurl + "less.js", 
       function () {
         //converts less into css
         var lessParser = (new less.Parser());
@@ -138,8 +144,11 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
       
       }
     ),
-    jade : sRS.parseFactory("jade", function (s, cb) {console.log("huh", s.text); s.parsed =  jade.compile(s.text)();  cb();}, defurl + "jade.js"),
-    jadec : sRS.parseFactory("jadec", function(s, cb) {s.parsed =  jade.compile(s.text); cb();}, defurl + "jade.js"),
+    jade : sRS.parseFactory("jade", function (s, cb) {s.result =  s.parsed =  jade.compile(s.text)();  cb();}, defurl + "jade.js"),
+    jadec : sRS.parseFactory("jadec", function(s, cb) {SW.jade[s.name] = s.parsed =  jade.compile(s.text); cb();}, defurl + "jade.js", 
+      function () {
+        SW.jade = {}; // store compiled in here
+      }),
     coffeescript : sRS.parseFactory("coffeescript", function(s, cb) {s.parsed =  CoffeeScript.compile(s.text); cb();}, defurl + "cs.js")
   };
   
@@ -167,7 +176,7 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
   
   theme = theme || "cm-s-default";
   
-  var global = SW;
+  var global = SW.global;
   
   
   
@@ -904,7 +913,7 @@ var parseOptions = function (options, defaults) { //done
           result = '';
         }
       } 
-      storage.parsed = result;
+      storage.result = result;
       results.push(result);
     }, 
     strict : function (storage) {
@@ -916,7 +925,7 @@ var parseOptions = function (options, defaults) { //done
          console.log(e);
          result = '';
        }
-       storage.parsed = result;
+       storage.result = result;
        storage.results.push(result);
     },    
     reparse : function (storage) {
@@ -924,7 +933,7 @@ var parseOptions = function (options, defaults) { //done
     },
     insert : function (storage, comobj) { //insert html
       var target$, parameters,
-        text = storage.parsed
+        text = storage.result
       ;
       
       
@@ -954,7 +963,7 @@ var parseOptions = function (options, defaults) { //done
       var selector, cssmaps, parameters, target$, text
       ;
             
-      cssmaps = cssParser(storage.parsed);
+      cssmaps = cssParser(storage.result);
 
       if (comobj.hasOwnProperty("parameters") ) {
         parameters = comobj.parameters;
@@ -979,7 +988,7 @@ var parseOptions = function (options, defaults) { //done
       ;
 
       
-      cssmaps = cssParser(storage.parsed);
+      cssmaps = cssParser(storage.result);
 
       if (comobj.hasOwnProperty("properties") ) {
         properties = comobj.properties;

@@ -87,13 +87,13 @@ then ;
 
 With vars in hand, one can create super var list at top of enclosing scope (function top)
 
-.toggle(first, second.classy, third)[o[whatever].o[otherever].o[more ever]]
+.toggle(first, second.classy, third)[1("Edit", "gold", "wideButton")[edit[]].2[run].3[hide]]
 
 so the parameters are the names and class of the buttons. The o[] are the actions to be taken, paired in correspondence to position. 
 
 defaults for each type
 
+.view[2{row2}[reset].3[run]]
 
-
-
+relocate stuff to SW object so that it can all be modified from the page itself!
 
