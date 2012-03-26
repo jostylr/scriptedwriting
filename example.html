@@ -163,35 +163,6 @@ Hello `js.edit[run]: "inline";`
 
 Where are the quotes? `js.event(click)[run]: alert("bad")`
 
-## REPLACE
-
-`REPLACE: 4+3`
-
-
-    //REPLACE
-     "no need for console";
-
-[REPLACE: count](scripts/click.html)
-
-
-## ADD
-
-`ADD: 4+3`
-
-```add
-n = 5;
-ret = 9;
-for (i =0; i < n; i += 1) {
-  ret += i;
-}
-ret;
-```
-
-    //ADD
-     "no need for console";
-
-[ADD: count](scripts/click.html)
-
 
 ## HTML and CSS
 
@@ -222,6 +193,48 @@ some `html.hide.insert: <p id="dude"><span class="great">empty<span></p>`
         1. to
         2. bye
         
+
+## CoffeeScript
+
+coffeescript to js:
+
+    coffeescript.run.insert.edit[]
+    # Functions:
+    square = (x) -> x * x
+    return square 4
+
+## Jade
+
+jade to html
+
+    jade.insert.edit[]
+    h1 Jade - node template engine
+    #con
+       p You are amazing
+       ul
+         li.first
+           a(href='#') foo
+         li
+           a(href='#') bar
+         li.last
+           a(href='#') baz  
+
+## Jade as Template
+
+jade as template
+
+    jadec.edit[]#jtemp
+    h1 Jade - node template engine
+    #con
+       p  #{something}
+
+js using template
+
+    js.needs(jtemp)[run.insert].edit[]
+    youAreUsingJade = true;
+    SW.blocks.jtemp.parsed({something: 5});
+    
+    
         
 ## Cooking it all up
 

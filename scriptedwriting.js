@@ -26,6 +26,12 @@
 } () ); 
 
 
+var SW = {
+  blocks : {}, //storage objects by name from runscripts
+  needs : {},  // stuff that needs the key
+  urls : {} //urls loaded, e.g., jsxgraph
+};  //for sharing
+
 // assigning eval to an alias elevates scope to global scope which is preferred. Still returns last result.
 // IE8- behaves as normal with alias. execScripts does global scope, but does not return results :(
 var geval = eval;
@@ -66,14 +72,14 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
           libs[type] = command;
           command(storage, cb);
         } else if (libs.loading.hasOwnProperty(url) ) {
-          libs.loading[url].push([storage, cb]);
+          libs.loading[url].push([storage, cb, type, command]);
         } else {
-          libs.loading[url] = [[storage, cb]];
+          libs.loading[url] = [[storage, cb, type, command]];
           $.ajax({
             url: url,
             dataType : "script",
             success: function () {
-              var i, 
+              var i, temp,
                 toLoad = libs.loading[url],
                 n = toLoad.length
               ;
@@ -82,7 +88,9 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
               }
               libs[type] = command;
               for (i = 0; i < n; i += 1) {
-                command.apply(null, libs.loading[url][i]);
+                temp = libs.loading[url][i];
+                libs[temp[2]] = temp[3];
+                temp[3].call(null, temp[0], temp[1]);
               }
               delete libs.loading[url];
               libs.loaded[url] = true;
@@ -130,9 +138,9 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
       
       }
     ),
-    jade : sRS.parseFactory("jade", function (s, cb) {s.parsed =  jade.compile(s.text)(); cb();}, defurl + "jade.js"),
+    jade : sRS.parseFactory("jade", function (s, cb) {console.log("huh", s.text); s.parsed =  jade.compile(s.text)();  cb();}, defurl + "jade.js"),
     jadec : sRS.parseFactory("jadec", function(s, cb) {s.parsed =  jade.compile(s.text); cb();}, defurl + "jade.js"),
-    coffeescript : sRS.parseFactory("coffeescript", function(s, cb) {s.parsed =  CoffeeScript(s.text); cb();}, defurl + "cs.js")
+    coffeescript : sRS.parseFactory("coffeescript", function(s, cb) {s.parsed =  CoffeeScript.compile(s.text); cb();}, defurl + "cs.js")
   };
   
   var makeModes = function (type, mode) {
@@ -159,11 +167,7 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
   
   theme = theme || "cm-s-default";
   
-  var global = {
-    blocks : {}, //storage objects by name from runscripts
-    needs : {},  // stuff that needs the key
-    urls : {} //urls loaded, e.g., jsxgraph
-  };
+  var global = SW;
   
   
   
@@ -915,7 +919,7 @@ var parseOptions = function (options, defaults) { //done
        storage.parsed = result;
        storage.results.push(result);
     },    
-    reset : function (storage) {
+    reparse : function (storage) {
       storage.parse(storage, $.noop);
     },
     insert : function (storage, comobj) { //insert html
