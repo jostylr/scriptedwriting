@@ -87,6 +87,8 @@ then ;
 
 With vars in hand, one can create super var list at top of enclosing scope (function top)
 
+.toggle[1("Hide Code", "gold.great",)[hide].2("Show Code")[show]].hide
+
 .toggle(first, second.classy, third)[1("Edit", "gold", "wideButton")[edit[]].2[run].3[hide]]
 
 so the parameters are the names and class of the buttons. The o[] are the actions to be taken, paired in correspondence to position. 

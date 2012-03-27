@@ -1052,41 +1052,63 @@ var parseOptions = function (options, defaults) { //done
           storage.container$.append(storage.editButton$);
         }
     },
-    //parameters: hide, hide button text, show   button text
+    //.toggle[1("Hide Code", "gold.great",)[hide].2("Show Code")[show]].hide
     toggle : function (storage, comobj){  //done
-      var hideButton, showButton, parameters, hide, hcb, scb,
-        self$ = storage.code$,
-        container$ = storage.container$
+      var
+        counter = 0,
+        actions = comobj.actions || [],
+        max = actions.length,
+        container$ = storage.container$,
+        button$ = $("<button></button>")
       ;
             
-      if (comobj.hasOwnProperty("parameters") ) {
-        parameters = comobj.parameters;
-        hide = parameters[0];
-        hcb = parameters[1];
-        scb = parameters[2];
-      } 
-      hideButton = $("<button>"+ (hcb ||  "Hide Code") + "</button>");
-      showButton = $("<button>"+ (scb ||  "Show Code") + "</button>");     
+      if (actions.length === 0) {
+        console.log("no button info", storage, comobj);
+        return ;
+      }
       
-      hideButton.click(function () {
-        self$.hide();
-        hideButton.hide();
-        showButton.show();
-      });
-      showButton.click(function () {
-        self$.show();
-        hideButton.show();
-        showButton.hide();
-      });
+      var modButton = function (actobj) {
+        // parameters: button text, class1.class2, future: style, placement
+        var i, n, classes,
+          parameters = actobj.parameters || []
+        ;
+        
+        if (parameters.length === 0) {
+          button$.text("Blank");  
+        } else {
+          button$.text(parameters[0]);
+        }
+        
+        if (parameters[1]) {
+          classes = parameters[1].split(".");
+          n = classes.length;
+          for (i = 1; i < n; i += 1) {
+            button$.addClass(classes[i].trim() );
+          }
+        }
+        
+        
+      };
+        
+      var clickfun = function () {
+        modButton(actions[ (counter+1) % max]);
+        
+        if (counter >= max) {
+          counter = 0;
+        }
+        
+        commenceActions(storage, actions[counter].actions);
+        counter += 1;
+        
+      }; 
       
-      container$.append(showButton);
-      container$.append(hideButton);
+      button$.on("click", clickfun);
       
-      if (hide === "hide") {
-        hideButton.click();
-      } else {
-        showButton.click();
-      }              
+      modButton(actions[counter]);
+      
+      
+      container$.append(button$);
+      
     },
     event : function (storage, comobj) { //event[stuff to act](event1, event2,...)
       var evnt, i, evntActions,
