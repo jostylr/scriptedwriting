@@ -7,6 +7,7 @@
   <script src="vendor/marking.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/less.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/jade.js" type="text/javascript" charset="utf-8"></script>
+  <link rel="stylesheet" href="vendor/bs.css" type="text/css" media="screen" title="no title" charset="utf-8">
   
   <script src="vendor/CodeMirror/lib/codemirror.js" type="text/javascript" charset="utf-8"></script>
   <link rel="stylesheet" href="vendor/CodeMirror/lib/codemirror.css" type="text/css" media="screen" title="no title" charset="utf-8">
@@ -51,9 +52,11 @@
 
 <body>
   
-  <div id="target">
-  </div>
-  
+  <div class="row-fluid">
+    <div class="span1"></div>
+    <div id="target" class="span10"></div>
+    <div class="span1"></div>
+  <div class="row-fluid"><div class="span12">
   <textarea rows=10 cols=100 id="tobemarked">Hello.
 
 My _name_ is Bob!
@@ -74,8 +77,8 @@ and then the css
 
 insert a box:
 
-    html.insert.hide
-    <div id="jxgbox" style="width:400px; height:400px;"></div>
+    html.view("raw.row-fluid .span6 .span6")[s{code}("text").s{html}("text")]
+    <div id="jxgbox" class="gold" style="width:400px; height:400px;"></div>
 
 and then we try some code: 
 
@@ -93,6 +96,12 @@ That is the setup
     js.needs(setup)[button{once}[edit.button[run](Run)](Edit)]
     p1.setPosition(JXG.COORDS_BY_USER, -2, 1);
     b.update();
+
+Some CSS to style the jsxgraph box:
+
+    css.attach.edit[]
+    .gold {border: 1px solid #0ff;}
+
 
 ## NEEDS
 
@@ -331,6 +340,6 @@ Add some from the last js snippet and you can see how it works.
   
   <button id="markit">Mark It!</button>
   
-  
+  </div></div>
   
 </body>

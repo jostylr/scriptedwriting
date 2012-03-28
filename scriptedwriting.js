@@ -62,6 +62,16 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
   
   defurl = defurl || "vendor/";
   
+  var hideCode = function (storage) {
+    console.log(storage.name, storage)
+    if (storage.inline) {
+      storage.code$.hide();
+    } else {
+      storage.code$.parent().hide();
+    }
+    
+  };
+  
   var parseFactory;
   
   // this is mental. creates a function that loads up a script and grabs that external function and uses it to run
@@ -706,7 +716,7 @@ var parseOptions = function (options, defaults) { //done
           sto = stocom[0];
           sto.text = data;  //storage objects get text as data
           sto.code$.text(data);
-          sto.code$.hide();
+          hideCode(storage);
           
           commenceActions.apply(null, stocom);
         }
@@ -1027,7 +1037,12 @@ var parseOptions = function (options, defaults) { //done
     },
     
     hide : function (storage) { //done
-      storage.code$.hide(); 
+      console.log(storage.inline)
+      if (storage.inline) {
+        storage.code$.hide();         
+      } else {
+        storage.pre$.hide();
+      }
     },
     show : function (storage, comobj) {
       storage.code$.show().addClass(theme);
@@ -1052,25 +1067,147 @@ var parseOptions = function (options, defaults) { //done
           storage.container$.append(storage.editButton$);
         }
     },
+    // this creates panes for text, parsed, results, whatevr
+    // row id.class.class  col1  col2  ...; row ...
+    // .view("first.row .span4 .span4 .span4", "second.row .span4")[s{edit/html/text/code}("property", "name")[actions to run before].result.act("temp")[run.results]]
+    view : function (storage, comobj) {
+      var i, n, ii, nn, row, row$, col$,  col, id, action, other, s, key, toGet, properties, pre$, code$, 
+        actionCount = 0,
+        actions = comobj.actions,
+        container$ = storage.container$,
+        rows = comobj.parameters || [],
+        layout = storage.layout || {},
+        name = storage.name
+      ;
+      
+      if (rows.length === 0) {
+        console.log("no rows in view", storage, comobj);
+      }
+      
+      //hide default pre box
+      if (storage.pre$) {
+        storage.pre$.hide();
+      } else {
+        storage.code$.hide();        
+      }
+
+      storage.layout = {};
+    
+      var idclassify = function (elem$, str) {
+        var idclass, classes
+        ;
+        if (!str) {
+          return ;
+        }
+        
+        idclass = str.split('.');
+        if (idclass[0]) {
+          elem$.attr("id", name+"_"+idclass[0]);
+          layout[id] = elem$; 
+        }
+        
+        if (idclass.length > 1) {
+          classes = idclass.slice(1).join(" ");
+          elem$.addClass(classes);
+        }
+        
+      };
+
+      n = rows.length;
+      //parse rows and create them in container$
+      for (i = 0; i < n; i += 1) {
+        row = rows[i].split(/\s+/);
+        // row[0] is top container's info
+        row$ = $("<div></div>");
+        layout[i] = row$;
+        idclassify(row$, row[0]);
+        container$.append(row$);
+        //loop through rest
+        nn = row.length;
+        for (ii = 1; ii < nn; ii += 1) {
+          col$ = $("<div></div>");
+          layout[i+","+"ii"] = col$;
+          idclassify(col$, row[ii]);
+          row$.append(col$);
+          //add in action stuff
+          action = actions[actionCount];
+          actionCount += 1;
+          if (!action){
+            continue;
+          }
+          console.log(action, actions)
+          if (action.command === "s") {
+            if (action.parameters) {
+              other = action.parameters[1];
+              if (other) {
+                s = global.blocks[other]; 
+                if (!s) {
+                  console.log("no such object", other, storage, action, comobj);
+                  continue;
+                }
+              } else {
+                s = storage;
+              }
+              toGet = action.parameters[0] || "text";
+            } else {
+              s = storage;
+              toGet = "text";
+            }
+            if (action.actions) {
+              commenceActions(s, action.actions);
+            }
+            
+            properties = action.properties || {};
+            if (properties.hasOwnProperty("edit")){
+              
+            } else if (properties.hasOwnProperty("html")){
+              col$.html(s[toGet]);
+            } else if (properties.hasOwnProperty("code")){
+              pre$ = $("<pre><code></code></pre>");
+              code$ = pre$.find('code').addClass(theme);
+              
+              codeMirror.runMode(s[toGet], s.mode, code$[0]); 
+              col$.html(pre$);
+            } else if (properties.hasOwnProperty("text")){
+              col$.text(s[toGet]);
+            } else {
+              col$.text(s[toGet]);
+            }
+          } else {
+            ii -= 1; //dangerous, but actionCount should break it if need be. This is to allow for prep actions. only s. adds stuff
+            commenceActions(storage, [action]);
+          }
+          
+        }
+      }
+      
+      
+      //go through actions and insert into row,col
+      
+      
+      
+      
+    }, 
     //.toggle[1("Hide Code", "gold.great",)[hide].2("Show Code")[show]].hide
     toggle : function (storage, comobj){  //done
-      var
+      var i, temp$,
         counter = 0,
         actions = comobj.actions || [],
         max = actions.length,
         container$ = storage.container$,
-        button$ = $("<button></button>")
+        buttons = []
       ;
             
       if (actions.length === 0) {
         console.log("no button info", storage, comobj);
         return ;
       }
-      
-      var modButton = function (actobj) {
-        // parameters: button text, class1.class2, future: style, placement
+            
+      var makeButton = function (actobj) {
+        // parameters: button text, id.class1.class2 || .class1.class2, placement
         var i, n, classes,
-          parameters = actobj.parameters || []
+          parameters = actobj.parameters || [],
+          button$ = $("<button></button>")
         ;
         
         if (parameters.length === 0) {
@@ -1079,36 +1216,43 @@ var parseOptions = function (options, defaults) { //done
           button$.text(parameters[0]);
         }
         
-        if (parameters[1]) {
+        //classes
+        if (parameters[1] & parameters[1] !== "null") {
           classes = parameters[1].split(".");
           n = classes.length;
+          if (classes[0]) {
+            button$.attr("id", classes[0]);
+          }
           for (i = 1; i < n; i += 1) {
             button$.addClass(classes[i].trim() );
           }
         }
+        button$.on("click", function () {
+          commenceActions(storage, actobj.actions);
+          button$.hide();
+          counter += 1;
+          if (counter >= max) {
+            counter = 0;
+          }
+          buttons[counter].show();
+        });
         
-        
-      };
-        
-      var clickfun = function () {
-        modButton(actions[ (counter+1) % max]);
-        
-        if (counter >= max) {
-          counter = 0;
+        if (parameters[2] & parameters[2] !== "null") {
+          storage.layout[parameters[2]].append(button$);
+        } else {
+          container$.append(button$);
+          container$.append(button$);
+          buttons.push(button$);
         }
-        
-        commenceActions(storage, actions[counter].actions);
-        counter += 1;
-        
-      }; 
-      
-      button$.on("click", clickfun);
-      
-      modButton(actions[counter]);
-      
-      
-      container$.append(button$);
-      
+        return button$;    
+      };
+  
+      for (i = 0; i < max; i += 1) {
+        temp$ = makeButton(actions[i]);
+        if (i !== 0) {
+          temp$.hide();
+        }
+      }      
     },
     event : function (storage, comobj) { //event[stuff to act](event1, event2,...)
       var evnt, i, evntActions,

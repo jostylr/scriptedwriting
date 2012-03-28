@@ -71,6 +71,12 @@ geval, plugin for more behaviors, figure out whether results should be or not, l
 _n("name here")  inserting named section
 _t(setup, expected, actual)  testing sample
 
+_n#name here#
+_great macro#{abe:3}#[54, 53]# 
+
+after # either {, [, (, or space (/s) to indicate end or a number or string--use quotes if not recognized properly as a string or if it includes a # character. 
+
+
 name parsing: folder/file/part  with a possible + at the beginning or end to indicate adding to another bit
 
 var  just, undefined, variables,
