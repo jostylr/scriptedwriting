@@ -79,7 +79,7 @@ We will ignore all even numbers. To do this, we add 2 to the array to start and 
         counter += 1;
       }
       current += 2;
-      _n("modify limit");
+      _n#modify limit# ;
     }
 
 The hard work is about to begin with the function isPrime. Actually, we will make it easy on ourselves. A non-prime number is divisible by a number less than the square root of itself. Thus, we only need to check the primes less than the square root of itself. We'll call the number we need to check   `limit`. We start at `primes[1]` because we are only dealing with odds. 
