@@ -31,7 +31,8 @@ var SW = {
     blocks : {}, //storage objects by name from runscripts
     needs : {},  // stuff that needs the key
     urls : {} //urls loaded, e.g., jsxgraph
-  }
+  },
+  maxCompTime : 100
 };  //for sharing
 
 // assigning eval to an alias elevates scope to global scope which is preferred. Still returns last result.
@@ -63,7 +64,6 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
   defurl = defurl || "vendor/";
   
   var hideCode = function (storage) {
-    console.log(storage.name, storage)
     if (storage.inline) {
       storage.code$.hide();
     } else {
@@ -188,7 +188,9 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
   
   var global = SW.global;
   
+  var blocks = global.blocks;
   
+  var maxCompTime = SW.maxCompTime;
   
   var nameCounter = 0;
   
@@ -325,6 +327,374 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
     delete global.needs[name];
 
   };
+
+  var nameChange = function (name) {
+    
+    if (blocks.hasOwnProperty(name)) {
+      if (blocks[name].nameCounter) {
+        blocks[name].nameCounter += 1;
+        name = name + blocks[name].nameCounter;
+      } else {
+        blocks[name].nameCounter = 1;
+        name = name + 1;
+      }
+    } 
+    return name;
+  };
+    
+  var manageName = function (storage, name) {
+    var def, t;
+    if (name === "=") { // defines default to add to for short things
+      name = newName();
+      storage.name = name;
+      global.defaultStorage = storage;
+    } else if (name === "+="){ //pre add to default
+      name = newName();
+      def = global.defaultStorage;
+      if (def) {
+        def.texts.unshift([name, storage.text, storage]);
+        def.text = storage.text + "\n" + def.text;
+      }   else {
+          console.log("ignoring =+", storage);
+        }
+    } else  if (name === "=+") { // post add to default
+      name = newName();
+      def = global.defaultStorage;
+      if (def) {
+          def.texts.push([name, storage.text, storage]);
+          def.text = def.text + "\n" + storage.text; 
+      } else {
+        console.log("ignoring =+", storage);
+      }
+    } else if (name[0] === "+") {
+      name = name.slice(1);
+      //add block before content
+      t = blocks[name];
+      name = nameChange(name); 
+      if (t) {
+        t.texts.unshift([name, storage.text, storage]);
+        t.text = storage.text + "\n" + t.text;
+      } else {
+        console.log("ignoring +"+ name, storage);
+      }
+    } else if (name[name.length-1] === "+"){  //post add
+      //add bloack after content
+       name = name.slice(0,-1);
+       //add block before content
+       t = blocks[name];
+       name = nameChange(name); 
+       if (t) {
+         t.texts.push([name, storage.text, storage]);
+         t.text = t.text + "\n" + storage.text;
+       } else {
+         console.log("ignoring +"+ name, storage);
+       }
+      
+    } else if (blocks.hasOwnProperty(name)) { //repeat with no adding
+      console.log("repeated name, overwriting", name, storage);
+    } else if (name[name.length-1] === "=") { // make local
+      global.defaultStorage = storage;
+      name = name.slice(0, -1);
+      if (blocks.hasOwnProperty(name)) { //repeat with no adding
+        console.log("repeated name, overwriting", name, storage);
+      }
+    }
+    
+    storage.name = name;
+    blocks[name] = storage;          
+    
+  };
+  
+  // callback:  [identifier for failure, function cb, data as args array]
+  var macroCallbacks = function (s) {
+    var i, 
+      cbs = s.macrocbs,
+      n = cbs.length
+    ; 
+    
+    for (i = 0; i < n; i += 1) {
+      try {
+        cbs[i][1].apply(s, cbs[i][2]);  // s is this in the callbacks
+      } catch (e) {
+        console.log("callback failure", e, s.macrocbs[i][0], s);
+      }
+    }
+  };
+  
+  var macroEval = function (s, macro) {
+    var i, cur, m, f,
+      args = [],
+      name = macro[0],
+      n = macro.length
+    ;
+    
+    try {
+      m = blocks[name];
+      
+      if (m) {
+        //macro[1]... are the arguments
+        for (i = 1; i < n; i += 1) {
+          args.push(eval(macro[i]));
+        }
+        
+        console.log(args, m)
+        
+        f = m.fun;
+        if (!f)  {
+          console.log(m.text)
+          f = m.fun = eval(m.text);
+        }
+                
+        return f.apply(s, args); //storage is this
+        
+      } else {
+        console.log("no such macro", macro);
+        return "";
+      }
+      
+      
+      
+    } catch (e) {
+      console.log("macro eval failed", e, macro);
+      return "";
+    }
+    
+  };
+  
+  var macrosub = function( text, s ) {
+    var i, curLetter, mode, start, curMacro, name, curArg, tail, end,
+      args = [], 
+      curText = [],
+      texts = [curText],
+      n = text.length,
+      startSep = "_",
+      argsStart = "(",
+      endSep = ")",
+      argSep = "#",
+      macros = []
+    ;
+    
+    mode = "top";
+    
+    //_"macro"(3#)
+    for (i = 0; i < n; i+=1 ) {
+      curLetter = text[i];
+      switch (mode) {
+        case "top" :
+          if ( (curLetter === startSep) && ( (text[i+1] === "'" ) || (text[i+1] === '"') ) ) { 
+            tail = text.slice(i+2);
+            end = tail.indexOf(text[i+1]); //same quote
+            if (end === -1) {
+              console.log("unterminated quote", tail);
+              curText.push(curLetter);
+            } else {
+              name = "_" + tail.slice(0, end);
+              i += end + 3;
+              // pure names have been read so there should be a parentheses
+              if (text.slice(i, i+2) === "()") {
+                curText.push(macroEval(s, [name]) );
+                i += 1;
+              } else if (text.slice(i, i+3) === "(#)") {
+                curText.push(macroEval(s, [name]) );                
+                i += 2;
+              } else if (text[i] === "(") { //get ready for arguments
+                curMacro = [name];
+                texts.push(curText);
+                curText = []; //text of argument
+                mode = "argument";
+              } else {
+                console.log("problem",  i, text);
+              }
+            }            
+          } else {
+            curText.push(curLetter);
+          }// otherwise move on
+        break; //top
+/*        case "name" :
+          switch (curLetter) {
+            case argSep : // start argument
+              curMacro[0] = curMacro[0].join('');
+              texts.push(curText);
+              curText = []; //text of argument
+              mode = "argument";
+            break;
+            case endSep : // end name
+            case "\n" : // new lines terminate names!
+              curMacro[0] = curMacro[0].join('');
+              curText.push(macroEval(s, curMacro) );
+              curMacro = macros.pop();
+              if (macros.length === 0) {
+                mode = "top";
+              } else {
+                mode = "argument";
+              }
+            break;
+            default : 
+              curMacro[0].push(curLetter);
+            break;
+          }
+        break; // name
+*/
+        case "argument" :  //in here, this should be js. At top, could be any language
+          switch (curLetter) {          
+            case argSep :
+              //finish old argument
+              curMacro.push(curText.join(''));
+              //check if it is the end: #)
+              if (text[i+1] === endSep) {
+                i += 1;
+                curMacro.push(curText.join(''));
+                curText = texts.pop();
+                curText.push(macroEval(s, curMacro) );
+                console.log("CT", curText)
+                curMacro = macros.pop();
+                if (macros.length === 0) {
+                  mode = "top";
+                } else {
+                  mode = "argument";
+                }
+              } else {
+                //new argument
+                curText = [];                
+              }
+            break;
+            case startSep : 
+              if ( (text[i+1] === "'" ) || (text[i+1] === '"') ) { 
+                tail = text.slice(i+2);
+                end = tail.indexOf(text[i+1]); //same quote
+                if (end === -1) {
+                  console.log("unterminated quote", tail);
+                  curText.push(curLetter);
+                } else {
+                  name = "_" + tail.slice(0, end);
+                  i += end + 3;
+                  // pure names have been read so there should be a parentheses
+                  if (text.slice(i, i+2) === "()") {
+                    curText.push(macroEval(s, [name]) );
+                    i += 1;
+                  } else if (text.slice(i, i+3) === "(#)") {
+                    curText.push(macroEval(s, [name]) );                
+                    i += 2;
+                  } else if (text[i] === "(") { //get ready for arguments
+                    macros.push(curMacro);
+                    curMacro = [name];
+                    texts.push(curText);
+                    curText = []; //text of argument
+                    mode = "argument";
+                  } else {
+                    console.log("problem",  i, text);
+                  }
+                }
+              }
+            break;
+            case "'" : 
+              tail = text.slice(i+1);
+              end = tail.indexOf("'");
+              if (end === -1) {
+                console.log("unterminated quote", tail);
+                curText.push(curLetter);
+              } else {
+                curText.push(tail.slice(0, end));
+                i += end + 1;
+              }
+            break;
+            case '"' :
+            tail = text.slice(i+1);
+            end = tail.indexOf('"');
+            if (end === -1) {
+              console.log("unterminated quote", tail);
+              curText.push(curLetter);
+            } else {
+              curText.push(tail.slice(0, end));
+              i += end + 1;
+            }            
+            break;
+            case "\\" : 
+              if (text[i+1].match(/\_\#\^\\\'\"/) ) {
+                curText.push(text[i+1]);
+                i = i+1;                
+              }
+            break;            
+            default : 
+              //add to current argument
+              curText.push(curLetter);
+            break;
+          }
+        break; //argument
+      }
+    }
+    return curText.join('');
+    
+  };
+  
+  
+  //the name functionality should already be done and added pieces together.
+  //this part compiles in the macro stuff, inserting pieces, etc., 
+  var compile = function compile (arr) {
+    var compiled, i, s, t, 
+      n = arr.length,
+      reg = /\_(\"[^"]+\"|\'[^']+\')[^(]/g
+    ;
+    
+    var replacef = function (sub, subsub, start, str) {
+      var requested
+      ;
+      requested = sub.slice(2,-2);
+      if (global.blocks.hasOwnProperty(requested) ) {
+        t = global.blocks[requested];
+        console.log(t.compiled, t.name, t.text)
+        if (t.compiled) {
+          console.log("compiled", t.text)
+          return t.text;          
+        } else {
+          if (compiled) { // only add to one outstanding need
+            compiled = false;
+            t.toBeCompiled.push(s);  // when t is compiled, s will be compiled again, maybe            
+          }
+          return sub; // do not replace. wait for compiling
+        }
+      } else { // all names are already claimed so this means can't use
+        console.log("no such block", requested, s);
+        return ""; //should make this changeable. This just deletes the bit
+      }
+    };
+    
+    for (i = 0; i < n; i += 1) {
+      s = arr[i];
+      if (s.compiled) {
+        continue; //done with it. needed for idempotency in calling compile repeatedly
+      }
+      if (s.compTimes >= maxCompTime) { //attempt to avoid infinite loop
+        continue;
+      } else {
+        s.compTimes += 1;
+      }
+      
+      //parse through looking for matches to substitute
+      // do _n first. these are the substitutions:  _n#name#   this is so that one can use them in other macros too! GHY
+      compiled = true;
+      //replaces all names in the function 
+      s.text = s.text.replace(reg, replacef);
+      console.log(s.text)
+            
+      if (compiled) {
+        s.compiled = true;
+        //then do the other macro substitutions
+        s.text = macrosub(s.text, s);
+        //then run through any that depend on this being compiled
+        compile(s.toBeCompiled);
+        s.toBeCompiled = []; //clear it
+        // run any callbacks generated by macros
+        macroCallbacks(s);
+        //now do actions
+        commenceActions(s, s.commands);
+      } 
+      
+    }
+    
+    
+  };
+  
   
   // goes through commands. commands passed in as they are often not storage.command, but a some array of commands.
   commenceActions = function (storage, commands) {
@@ -405,6 +775,11 @@ var containIt = function (storage) { // done
 var parseOptions = function (options, defaults) { //done
   var n, ret, comobj, mode, parents, bin, temp, actions, i, currentLetter, parameters, tail, end, ii, nn, paract, properties;
   
+
+  if (!options) {
+    options = defaults;
+  }
+  
   
   //parse it a character at a time
   options = options.trim();
@@ -412,16 +787,13 @@ var parseOptions = function (options, defaults) { //done
   ret =  {actions : []};
   parents = [];
   if (options[0] === '#' ) {
-    if (defaults) {
-      options = defaults + options;      
-    } else {
-      ret.name = options.slice(1);
-      return ret;
-    }
-  } else if (options[0] !== '.' ) {
+    console.log("name only", options);
+    ret.name = options.slice(1);      
+    return ret;
+  } else if (options[0] !== '.' ) { 
     //improve!!!
     ret.name = newName();
-//    console.log("unrecognized options", options);
+    console.log("unrecognized options", options);
     return ret;
   }
   mode = "action";
@@ -656,8 +1028,7 @@ var parseOptions = function (options, defaults) { //done
     }
     
   }
-  
-  
+    
   if (bin.length !== 0) {
     comobj.command = bin.join("").trim();
     bin = [];
@@ -729,6 +1100,7 @@ var parseOptions = function (options, defaults) { //done
   var runScripts = function me (options) { 
     options = options || {};
     var name, 
+      toCompile = [],
       blocks = global.blocks,
       urls = global.urls,
       defaults = $.extend({}, me.defaults, options.defaults),
@@ -740,7 +1112,12 @@ var parseOptions = function (options, defaults) { //done
       var url, text, match, type, classes, actionFun, container$, par$, namesplit,
         storage = {
           actions : actions,
-          results : []
+          results : [],
+          //compile vars
+          toBeCompiled : [],
+          compiled : false,
+          compTimes : 0,
+          macrocbs : []
         },
         self$ = $(this)
       ;
@@ -760,6 +1137,7 @@ var parseOptions = function (options, defaults) { //done
         
         //clean text
         storage.text = text = text.replace(reg, '').trim();
+        
         //self$.text(text);
         
         //type., actions . , name #
@@ -774,22 +1152,19 @@ var parseOptions = function (options, defaults) { //done
         }) (storage);
         
           
-        storage.options = parseOptions(match[2], defaults);
+        storage.options = parseOptions(match[2], defaults[type]);
         
         storage.commands = storage.options.actions;
         name = storage.name = storage.options.name;
+        storage.texts = [[name, storage.text, storage]];
         delete storage.options;
         
         //console.log(JSON.stringify([storage.commands, storage.name, storage.type, storage.text]))
         
         //store in blocks
-        if (blocks.hasOwnProperty(name)) {
-          console.log("IGNORING: name already used", name, storage, blocks[name]);
-        } else {
-          blocks[name] = storage;          
-          storage.commenced = false;
-        }
+        manageName(storage, name);
         
+        storage.commenced = false;
         
         storage.url = url = self$.attr("href"); 
         //if url, then load it. check first to see if already loaded. then use storage to run commands. add in lib command for checking
@@ -814,12 +1189,14 @@ var parseOptions = function (options, defaults) { //done
             storage.self$ = par$;
           }
           storage.isLink = false;
-                    
-          commenceActions(storage, storage.commands);
+          
+          toCompile.push(storage);
+          //commenceActions(storage, storage.commands);
                     
         }
       }
     });
+    compile(toCompile);
     return this;
   };
 
@@ -827,7 +1204,7 @@ var parseOptions = function (options, defaults) { //done
   // defaults need to be type based
   //default is to run the code snippet, make it editable, append each of the results, and give it no name
   runScripts.defaults = {
-    js : ".run.edit[.run.text].text",
+    js : ".run.edit[run.text].text",
     html : ".insert.hide",
     css : ".apply.hide",
     md : ".in"
@@ -1037,12 +1414,7 @@ var parseOptions = function (options, defaults) { //done
     },
     
     hide : function (storage) { //done
-      console.log(storage.inline)
-      if (storage.inline) {
-        storage.code$.hide();         
-      } else {
-        storage.pre$.hide();
-      }
+      hideCode(storage);
     },
     show : function (storage, comobj) {
       storage.code$.show().addClass(theme);
@@ -1085,12 +1457,8 @@ var parseOptions = function (options, defaults) { //done
       }
       
       //hide default pre box
-      if (storage.pre$) {
-        storage.pre$.hide();
-      } else {
-        storage.code$.hide();        
-      }
-
+      hideCode(storage);
+      
       storage.layout = {};
     
       var idclassify = function (elem$, str) {
@@ -1135,7 +1503,6 @@ var parseOptions = function (options, defaults) { //done
           if (!action){
             continue;
           }
-          console.log(action, actions)
           if (action.command === "s") {
             if (action.parameters) {
               other = action.parameters[1];
@@ -1158,6 +1525,7 @@ var parseOptions = function (options, defaults) { //done
             }
             
             properties = action.properties || {};
+            console.log(s[toGet], s.name);
             if (properties.hasOwnProperty("edit")){
               
             } else if (properties.hasOwnProperty("html")){

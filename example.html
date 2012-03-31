@@ -65,6 +65,75 @@ My _name_ is Bob!
 2. I do not work for you.
 3. I think you are swell.
 
+## COMPILING
+
+First a starting js
+
+    js.run.insert#=
+    j += 1;
+    
+This is in a loop: 
+
+    js#+=
+    j = 0;
+    for (i = 0; i < 10; i +=1) {
+      
+And then we want to end it:
+
+    js#=+
+    }
+    j;
+
+And does it run? You should see 10.
+
+What about naming? 
+
+    js.run.insert#great
+    sum = Math.log(i+1);
+    
+That will compute the log of each term in the loop. Now we wish to loop: 
+
+    js#+great
+    sum = 0;
+    for (i = 0; i < 100; i += 1) {
+      
+And then we close the loop
+
+    js#great+
+    }
+    sum; 
+
+## MACROs
+
+Now let's insert named pieces of text.
+
+    js.run.insert#loop
+    k = 5
+    for (i = 0; i < 10; i += 1) {
+      _"body"
+    }
+    k;
+
+The body variable could then be
+
+    js#body
+    k *= i+1;
+
+And that is insertion.
+
+Now for a macro definition
+
+    js#_log
+    ret = function (num) {
+      return Math.log(num);
+    } 
+  
+And we can use it: 
+
+    js.run.insert
+    i = 5 + _"log"(5#);
+
+
 ## JSXGRAPH
 
 First we load jsxgraph:
