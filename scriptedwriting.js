@@ -462,7 +462,8 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
   };
   
   var macrosub = function( text, s ) {
-    var i, curLetter, mode, start, curMacro, name, curArg, tail, end,
+    var i, curLetter, mode, start, curMacro, name, curArg, tail, end, 
+      modes = [],
       args = [], 
       curText = [],
       texts = [curText],
@@ -470,7 +471,7 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
       startSep = "_",
       argsStart = "(",
       endSep = ")",
-      argSep = "#",
+      argSep = ",",
       macros = []
     ;
     
@@ -479,6 +480,9 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
     //_"macro"(3#)
     for (i = 0; i < n; i+=1 ) {
       curLetter = text[i];
+      if (mode !== "top") {
+        console.log(curLetter, mode, modes, curText.join(""), curMacro.join(""), macros, texts)
+      }
       switch (mode) {
         case "top" :
           if ( (curLetter === startSep) && ( (text[i+1] === "'" ) || (text[i+1] === '"') ) ) { 
@@ -494,13 +498,11 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
               if (text.slice(i, i+2) === "()") {
                 curText.push(macroEval(s, [name]) );
                 i += 1;
-              } else if (text.slice(i, i+3) === "(#)") {
-                curText.push(macroEval(s, [name]) );                
-                i += 2;
               } else if (text[i] === "(") { //get ready for arguments
                 curMacro = [name];
                 texts.push(curText);
                 curText = []; //text of argument
+                modes.push("top");
                 mode = "argument";
               } else {
                 console.log("problem",  i, text);
@@ -538,25 +540,17 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
         case "argument" :  //in here, this should be js. At top, could be any language
           switch (curLetter) {          
             case argSep :
-              //finish old argument
               curMacro.push(curText.join(''));
-              //check if it is the end: #)
-              if (text[i+1] === endSep) {
-                i += 1;
-                curMacro.push(curText.join(''));
-                curText = texts.pop();
-                curText.push(macroEval(s, curMacro) );
-                console.log("CT", curText)
-                curMacro = macros.pop();
-                if (macros.length === 0) {
-                  mode = "top";
-                } else {
-                  mode = "argument";
-                }
-              } else {
-                //new argument
-                curText = [];                
-              }
+              curText = [];                
+            break;
+            case endSep : 
+              i += 1;
+              curMacro.push(curText.join(''));
+              curText = texts.pop();
+              curText.push(macroEval(s, curMacro) );
+              console.log("CT", curText)
+              curMacro = macros.pop();
+              mode = modes.pop();
             break;
             case startSep : 
               if ( (text[i+1] === "'" ) || (text[i+1] === '"') ) { 
@@ -572,14 +566,12 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
                   if (text.slice(i, i+2) === "()") {
                     curText.push(macroEval(s, [name]) );
                     i += 1;
-                  } else if (text.slice(i, i+3) === "(#)") {
-                    curText.push(macroEval(s, [name]) );                
-                    i += 2;
                   } else if (text[i] === "(") { //get ready for arguments
                     macros.push(curMacro);
                     curMacro = [name];
                     texts.push(curText);
                     curText = []; //text of argument
+                    modes.push(mode);
                     mode = "argument";
                   } else {
                     console.log("problem",  i, text);
@@ -588,8 +580,10 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
               }
             break;
             case "'" : 
+            case '"' :
+            case "/" : //for regex support. Maybe comments could be /*   */ with no slashes in them. try not to use them
               tail = text.slice(i+1);
-              end = tail.indexOf("'");
+              end = tail.indexOf(curLetter);
               if (end === -1) {
                 console.log("unterminated quote", tail);
                 curText.push(curLetter);
@@ -597,7 +591,8 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
                 curText.push(tail.slice(0, end));
                 i += end + 1;
               }
-            break;
+            break;            
+            /*
             case '"' :
             tail = text.slice(i+1);
             end = tail.indexOf('"');
@@ -609,18 +604,68 @@ var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
               i += end + 1;
             }            
             break;
+            */
+            case "(" :
+            case "[" :
+            case "{" :
+              curText.push(curLetter);
+              modes.push(mode);
+              mode = "par";
+            break; //parentheses
+            /*  ??
             case "\\" : 
               if (text[i+1].match(/\_\#\^\\\'\"/) ) {
                 curText.push(text[i+1]);
                 i = i+1;                
               }
-            break;            
+            break;  
+           */        
             default : 
               //add to current argument
               curText.push(curLetter);
             break;
           }
         break; //argument
+        case "par" : //don't care about matching, just stopping the enclosing brackets
+          switch (curLetter) {
+            case ")" :
+            case "}" :
+            case "]" :
+              curText.push(curLetter);
+              mode = modes.pop();
+            break;
+            case startSep : 
+              if ( (text[i+1] === "'" ) || (text[i+1] === '"') ) { 
+                tail = text.slice(i+2);
+                end = tail.indexOf(text[i+1]); //same quote
+                if (end === -1) {
+                  console.log("unterminated quote", tail);
+                  curText.push(curLetter);
+                } else {
+                  name = "_" + tail.slice(0, end);
+                  i += end + 3;
+                  // pure names have been read so there should be a parentheses
+                  if (text.slice(i, i+2) === "()") {
+                    curText.push(macroEval(s, [name]) );
+                    i += 1;
+                  } else if (text[i] === "(") { //get ready for arguments
+                    macros.push(curMacro);
+                    curMacro = [name];
+                    texts.push(curText);
+                    curText = []; //text of argument
+                    modes.push(mode);
+                    mode = "argument";
+                  } else {
+                    console.log("problem",  i, text);
+                  }
+                }
+              }
+            break;
+            default : 
+              curText.push(curLetter);
+            break;
+          }
+        break;
       }
     }
     return curText.join('');
