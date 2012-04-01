@@ -68,30 +68,16 @@ incorporate less: [so jrburke](http://stackoverflow.com/questions/5889901/requir
 
 geval, plugin for more behaviors, figure out whether results should be or not, literate programming
 
-_n("name here")  inserting named section
-_t(setup, expected, actual)  testing sample
+Snippets/Macros are _"stuff here" with optional () to make into macro. Also support for macros for _stuff without quotes for a var name. Needs whitespace in front for that form.
 
-_n#name here#
-_great macro#{abe:3}#[54, 53]# 
+Indent code based on placement of snippet/macro indentation-- add it to each line in the beginning. DONE--Snippets.  
 
-after # either {, [, (, or space (/s) to indicate end or a number or string--use quotes if not recognized properly as a string or if it includes a # character. 
+Use `_vh()` to say, "put vars here for stuff that contributes to this block"
 
+Use `_var()` to give a comma separated list of var names, optional assignment, that will be place in vars area separated by commas. Order could be random between snippets, in order per snippet.
 
-name parsing: folder/file/part  with a possible + at the beginning or end to indicate adding to another bit
+macro args are not eval'd.  DONE
 
-var  just, undefined, variables,
-  assignedVar = "whatever",
-  another = [great, job]
-;
-
-split text into new lines to begin with. helps with line counts 
-at top of a block.
-if "var" at beginning, then go into chunking. 
-First line: grab stuff until ,  then new var, new var, ...  until \n
-after, one var per line with =    name = whatever possibly check if last character is a comma (\n already split away)
-then ; 
-
-With vars in hand, one can create super var list at top of enclosing scope (function top)
 
 .toggle[1("Hide Code", "gold.great",)[hide].2("Show Code")[show]].hide
 
