@@ -19,6 +19,7 @@
   <script src="vendor/CodeMirror/mode/less/less.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/CodeMirror/mode/markdown/markdown.js" type="text/javascript" charset="utf-8"></script>
   <script src="vendor/CodeMirror/mode/coffeescript/coffeescript.js" type="text/javascript" charset="utf-8"></script>
+  <script src="vendor/jshint.js"></script>
   
   
   <script src="scriptedwriting.js" type="text/javascript" charset="utf-8"></script>
@@ -27,7 +28,7 @@
   <style type="text/css">.scriptedwriting {width:100%}</style>
   
   <script type="text/javascript">     
-    setupRunScripts($, CodeMirror, "cm-s-default", "vendor/");
+    setupRunScripts($, CodeMirror, JSHINT, "cm-s-default", "vendor/");
 
     markit = function () {
       var text = $("#tobemarked").val();
@@ -153,7 +154,7 @@ insert a box:
 and then we try some code: 
 
 
-    js.needs(jsxgraph)[event[run](dblclick).event[edit](click)]#setup
+    js.lint.needs(jsxgraph)[event[run](dblclick).event[edit](click)]#setup
     b = JXG.JSXGraph.initBoard('jxgbox', {boundingbox: [-5, 2, 5, -2]});
     p1 = b.create('point',[-1,1], {name:'A',size:4});
     p2 = b.create('point',[2,-1], {name:'B',size:4});
