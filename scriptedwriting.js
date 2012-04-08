@@ -80,6 +80,8 @@ SW.Blocks.prototype._var = {
   }
 };
 
+SW.lint = {asi:true}
+
 SW.global = {
   blocks : new SW.Blocks(), //storage objects by name from runscripts
   needs : {},  // stuff that needs the key
@@ -106,7 +108,7 @@ try {
 
 
 //anon for local closure
-var setupRunScripts = function sRS ($, codeMirror, theme, defurl) {
+var setupRunScripts = function sRS ($, codeMirror, JSHINT, theme, defurl) {
   
   
   var libs = {
@@ -1311,6 +1313,27 @@ var parseOptions = function (options, defaults) { //done
         gurl.ran = true;
       }
       
+    },
+    lint : function (storage, comobj) {
+      JSHINT(storage.parsed, SW.lint)
+      var report = JSHINT.report()
+        , type
+        
+      if (comobj.parameters) {
+        type = parameters[1] || "html"
+        $(comobj.paramteters[0])[type](report)
+      } else {
+        if (storage.lint$) {
+          storage.lint$.html(report)
+        } else {
+          storage.lint$ = $("<div class='hint'></div>")
+          storage.lint$.html(report)
+          storage.lint$
+            .click(function () {$(this).hide()})
+            .show()
+          storage.container$.append(storage.lint$)
+        }
+      }
     },
     def : function (storage, comobj) {  //default uses primary
       commenceActions(storage, storage.primary);
