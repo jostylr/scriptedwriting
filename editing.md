@@ -154,25 +154,25 @@ Save markdown to filename. Have optional overwrite to overwrite the file. This c
       return function (exists) {
         _"sif not exists"
         fs.writeFile(req.body.fname, req.body.file, 'utf8', function () {
-          res.end("file " + req.body.fname +" saved");
-        });
+          res.end("file " + req.body.fname +" saved")
+        })
         _vars(comp, key)
-        comp = req.body.compiled;
+        comp = req.body.compiled
         if (comp) {
           for (key in comp) {
             //should deal with directory creating. later
-            fs.writeFile(comp[key].fname, comp[key].file, 'utf8');
+            fs.writeFile(comp[key].fname, comp[key].file, 'utf8')
           }
         }
-      };
-    };
+      }
+    }
     
 And the not exists part:
 
     js#sif not exists
     if (exists && !req.body.overwrite) {
       res.end("file exists and no overwrite command")
-      return ;
+      return 
     }
 
 
@@ -200,31 +200,32 @@ For marked, get tokens via .lexer(src). Go through each token, demarcating the b
 
     js#div the tokens
     divToke = function (text) {
-      var tokens, i, n,
-        originals = {},
-        parts = []
-      ;
+      var tokens
+        , i
+        , n
+        , originals = {}
+        , parts = []
       
-      starts = [[0,0]];
-      idcount = 1;
-      tokens = marked.lexer(text);
-      str = '';
-      n = tokens.length;
+      starts = [[0,0]]
+      idcount = 1
+      tokens = marked.lexer(text)
+      str = ''
+      n = tokens.length
       for (i = 0; i < n; i += 1) {
-        toke = tokens[i];
+        toke = tokens[i]
         if (toke.hasOwnProperty("original")) {
           if (toke.type === "code") {
             //parse it
             tokens[i] = {
-              type : "pass",
-              text : '<div id' + '="md' + idcount + '" class="editable code">' + marked.parser([toke]) + '</div>';
-            }; 
-            originals["md"+idcount] = toke.original;
-            idcount += 1;
+                type : "pass"
+              , text : '<div id' + '="md' + idcount + '" class="editable code">' + marked.parser([toke]) + '</div>'
+            } 
+            originals["md"+idcount] = toke.original
+            idcount += 1
           } else if (toke.type === "heading") {
             _"head sectioning"
           } else {
-            console.log("did not recognize type", toke);
+            console.log("did not recognize type", toke)
           }
         } //no action here
       }
@@ -318,4 +319,4 @@ And later in the parser
 
 ## Eventually but soon
 
-JSLint integration, tests, logging. 
+tests, logging. 
