@@ -13,8 +13,10 @@
     body {
       padding-top : 40px;
     }
+    pre {word-break:normal}
+    
   </style>
-  
+    
   <script src="vendor/CodeMirror/lib/codemirror.js" type="text/javascript" charset="utf-8"></script>
   <link rel="stylesheet" href="vendor/CodeMirror/lib/codemirror.css" type="text/css" media="screen" title="no title" charset="utf-8">
   <script src="vendor/CodeMirror/lib/util/runmode.js" type="text/javascript" charset="utf-8"></script>
@@ -48,7 +50,7 @@
       , full$ = $("#fullMirror")
       , section$ = $("#sectionMirror")
       , preview$ = $("#previewArea")
-      , fullEditor = CodeMirror(full$[0], {
+      , fullEditor =  CodeMirror(full$[0], {
           value : src
         , mode : "markdown"
         , lineNumbers : true
@@ -63,11 +65,8 @@
       section$.hide()
       if (! splitActive) {
         preview$.hide()
-      }
-      
-      fullEditor.value = src;
-      
-    }) //#full
+      }      
+    }).click() //#full
     $("#section")
   })
   
@@ -75,7 +74,6 @@
   
   
   </script>
-  
   
 </head>
 
