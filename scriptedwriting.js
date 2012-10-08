@@ -2,6 +2,7 @@
 /*jslint evil : true, continue : true */
 
 //add trim to strings
+;
 (function () {
   // https://github.com/kriskowal/es5-shim/blob/master/es5-shim.js
   var ws = "\x09\x0A\x0B\x0C\x0D \xA0\u1680\u180E\u2000\u2001\u2002\u2003" +
@@ -20,23 +21,38 @@
           return String(this).replace(trimBeginRegexp, "").replace(trimEndRegexp, "");
       };
   }
-
-  
-  
 } () ); 
 
 var root = this; // place to put stuff 
 
+root.SW = (function () {
 
-var SW = {};
+//constructor
+var SW  = function () {
+  
+  this.global = {
+    blocks : new this.Blocks(), //storage objects by name from runscripts
+    needs : {},  // stuff that needs the key
+    urls : {} //urls loaded, e.g., jsxgraph  
+  };
+  
+};
+  
+// JSLint options
+SW.prototype.lint = {asi : true};
 
-SW.Blocks = function () {};
+// maxComptTime limits how many compile checks in case of infninite loop stuff
+SW.prototype.maxCompTime = 100; 
+
+//creates a storage object for 
+SW.prototype.Blocks = function () {};
 
 //need indent.
+//vars here macro
 SW.Blocks.prototype._vh = {
   fun : function () {
-    var indent, str, match, 
-    s = this
+    var indent, str, match
+      , s = this
     ;
     
     s.macrocbs.push(["vh:"+s.name, function () {
@@ -59,6 +75,7 @@ SW.Blocks.prototype._vh = {
   }
 };
 
+//adding var
 SW.Blocks.prototype._var = {
   fun : function () {
     var v, i, 
@@ -80,15 +97,9 @@ SW.Blocks.prototype._var = {
   }
 };
 
-SW.lint = {asi:true}
 
-SW.global = {
-  blocks : new SW.Blocks(), //storage objects by name from runscripts
-  needs : {},  // stuff that needs the key
-  urls : {} //urls loaded, e.g., jsxgraph  
-};
+SW.
 
-SW.maxCompTime = 100; 
 
 // assigning eval to an alias elevates scope to global scope which is preferred. Still returns last result.
 // IE8- behaves as normal with alias. execScripts does global scope, but does not return results :(
@@ -1774,3 +1785,7 @@ var parseOptions = function (options, defaults) { //done
 //  $.fn.loadLibs = loadLibs;
   
 };
+
+return SW;
+}()); //end root.SW declaration
+
